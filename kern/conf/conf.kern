@@ -441,3 +441,16 @@ file		test/semunit.c
 file		test/kmalloctest.c
 file		test/fstest.c
 optfile net	test/nettest.c
+
+
+defoption syscalls
+optfile syscalls syscall/file_syscalls.c
+optfile syscalls syscall/proc_syscalls.c
+
+defoption file
+
+defoption fork
+
+defoption waitpid
+
+defoption synch

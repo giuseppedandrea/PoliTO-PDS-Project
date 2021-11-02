@@ -1,0 +1,7 @@
+### OS/161 ###
+build/*
+build
+defs.mk
+kern/compile/*
+*.swp
+.depend
