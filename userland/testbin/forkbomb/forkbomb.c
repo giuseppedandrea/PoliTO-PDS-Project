@@ -49,6 +49,7 @@
 
 #include <unistd.h>
 #include <err.h>
+#include <stdio.h>
 
 static volatile int pid;
 
@@ -58,9 +59,19 @@ main(void)
 	int i;
 
 	while (1) {
+		printf("Before fork()\n");
+
 		fork();
 
+		printf("After getpid()\n");
+
+		printf("Before getpid()\n");
+
 		pid = getpid();
+
+		printf("After getpid()\n");
+
+		printf("PID = %d\n", pid);
 
 		/* Make sure each fork has its own address space. */
 		for (i=0; i<300; i++) {

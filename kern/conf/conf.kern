@@ -454,3 +454,5 @@ defoption fork
 defoption waitpid
 
 defoption synch
+
+defoption shell

@@ -1,10 +1,3 @@
-/*
- * AUthor: G.Cabodi
- * Very simple implementation of sys__exit.
- * It just avoids crash/panic. Full process exit still TODO
- * Address space is released
- */
-
 #include <types.h>
 #include <kern/unistd.h>
 #include <kern/errno.h>
@@ -61,12 +54,18 @@ sys_waitpid(pid_t pid, userptr_t statusp, int options)
 #endif
 }
 
-pid_t
-sys_getpid(void)
+pid_t sys_getpid(void)
 {
-#if OPT_WAITPID
+#if OPT_SHELL
+  struct proc *p;
+
   KASSERT(curproc != NULL);
-  return curproc->p_pid;
+
+  P(curproc->p_sem);
+  p=curproc;
+  V(curproc->p_sem);
+
+  return p->p_pid;
 #else
   return -1;
 #endif
