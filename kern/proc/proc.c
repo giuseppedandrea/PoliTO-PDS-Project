@@ -65,6 +65,7 @@ struct proc *kproc;
 
 #if OPT_SHELL
 
+
 static int proc_hundreds=1;
 
 static struct _processTable {
@@ -75,12 +76,21 @@ static struct _processTable {
   struct spinlock lk;	/* Lock for this table */
 } processTable;
 
+#define _PROCTABLE_proc(pid) (processTable.proc[pid])
+
+struct _children{
+  pid_t *p_ch;
+  int n_ch;
+  int last_ch; 
+}; 
+
 
 struct proc *proc_search_pid(pid_t pid) {
       struct proc *p;
 
       KASSERT(pid>=0 && pid<__PID_MAX); // fix this
 
+      p = _PROCTABLE_proc(pid);
       p = processTable.proc[pid];
       
       KASSERT(p->p_pid==pid); // fix this
@@ -88,11 +98,12 @@ struct proc *proc_search_pid(pid_t pid) {
 }
 
 
-
-static void processTable_add(struct proc *proc, const char *name) {
+// returns pid added or error code
+static int processTable_add(struct proc *proc, const char *name) {
       /* search a free index in table using a circular strategy */
       int i, found=0;
       struct proc **buff;
+      
 
       spinlock_acquire(&processTable.lk);
 
@@ -100,7 +111,7 @@ static void processTable_add(struct proc *proc, const char *name) {
       proc->p_pid = 0;
 
       if (i>proc_hundreds*MAX_PROC) //e' un vettore circolare, devi verificare se ci sono posizioni
-                                    // libere deallocate
+                                    // libere deallocate 
         i=1;
 
       while (i!=processTable.last_i) {
@@ -133,6 +144,7 @@ static void processTable_add(struct proc *proc, const char *name) {
         found=1;
       }
 
+        
       spinlock_release(&processTable.lk);
   
       if (proc->p_pid==0) {
@@ -145,10 +157,13 @@ static void processTable_add(struct proc *proc, const char *name) {
            AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
            ----------------------------------------------------------------------------*/
           panic("too many processes. proc table is full\n");
+
+          return -1; // fix this with right error code
       }
   
       proc->p_status = 0;
       proc->p_sem = sem_create(name, 0);
+      return proc->p_pid;
 }
 
 
@@ -171,16 +186,32 @@ static void processTable_remove(struct proc *proc) {
       sem_destroy(proc->p_sem);
 }
 
+
 #endif
+
+static int procChildren_create(struct proc *p)
+{
+      int dim=(int) __PID_CHILDREN_MAX/4+1; // first number children 25 
+
+      if(p==NULL)
+        return 1; // error on passing process
+
+      p->ch_pid=(struct _children *) kmalloc(sizeof(*p->ch_pid));
+      p->ch_pid->p_ch=(pid_t *) kmalloc(dim*sizeof(pid_t));
+      p->ch_pid->n_ch=dim;
+      
+      p->fath_pid=p->p_pid;
+
+      return 0;
+}
 
 /*
  * Create a proc structure.
  */
-static
-struct proc *
-proc_create(const char *name)
+static struct proc *proc_create(const char *name)
 {
       struct proc *proc;
+      pid_t pid;
 
       proc = kmalloc(sizeof(*proc));
       if (proc == NULL) {
@@ -202,9 +233,18 @@ proc_create(const char *name)
       proc->p_cwd = NULL;
 
 #if OPT_SHELL
-      if (processTable.active) {
-            processTable_add(proc, name);
-      }
+      if(processTable.active)
+        {
+          // im creating a user process
+          pid=(pid_t) processTable_add(proc, name);
+          
+          if (pid==-1) // too many processes
+            return NULL;
+
+          if(procChildren_create(proc))
+            return NULL; // allocation problem          
+          
+        }
 #endif
 #if OPT_FILE
       bzero(proc->fileTable,OPEN_MAX*sizeof(struct openfile *));
@@ -307,19 +347,23 @@ proc_destroy(struct proc *proc)
 void
 proc_bootstrap(void)
 {
+
       kproc = proc_create("[kernel]");
       if (kproc == NULL) {
       panic("proc_create for kproc failed\n");
-}
+      }
 
 #if OPT_SHELL
       spinlock_init(&processTable.lk);
       /* kernel process is not registered in the table */
       processTable.dimTable=proc_hundreds*100+1;
       processTable.proc=kmalloc(processTable.dimTable*sizeof(struct proc *));
+      
 
       processTable.active = 1;
 #endif
+
+
 }
 
 
@@ -459,9 +503,8 @@ proc_setas(struct addrspace *newas)
 }
 
 
-#if OPT_WAITPID
-int 
-proc_wait(struct proc *proc)
+#if OPT_SHELL
+int proc_wait(struct proc *proc)
 {
       int return_status;
       /* NULL and kernel proc forbidden */
@@ -493,8 +536,10 @@ void proc_signal_end(struct proc *proc)
 void 
 proc_file_table_copy(struct proc *psrc, struct proc *pdest) {
       int fd;
+
       for (fd=0; fd<OPEN_MAX; fd++) {
         struct openfile *of = psrc->fileTable[fd];
+
         pdest->fileTable[fd] = of;
         if (of != NULL) {
           /* incr reference count */
@@ -502,4 +547,64 @@ proc_file_table_copy(struct proc *psrc, struct proc *pdest) {
         }
       }
 }
+#endif
+
+#if OPT_SHELL
+
+int procChild_add(struct proc *fath, struct proc *ch)
+{
+      pid_t fath_pid, ch_pid;
+      int i, found=0;
+      
+
+      if(fath==NULL || ch==NULL) // process passed are not allocated
+        return 1;
+
+      KASSERT(fath!=kproc); // father process can't be kproc
+
+      fath_pid=fath->p_pid;
+      ch_pid=ch->p_pid;
+      
+      ch->fath_pid=fath_pid;
+
+
+      i = fath->ch_pid->last_ch+1;
+
+      if(i>fath->ch_pid->n_ch)
+        i=1;
+
+      while(i!=fath->ch_pid->last_ch)
+        {
+          if(fath->ch_pid->p_ch[i]==0){
+            fath->ch_pid->p_ch[i]=ch_pid;
+            fath->ch_pid->last_ch=i;
+            found=1;
+            break;
+          }
+
+          i++;
+          
+          if(i>fath->ch_pid->n_ch)
+            i=1;
+
+        }
+
+      if(!found && fath->ch_pid->n_ch<__PID_CHILDREN_MAX)
+        {
+          // must implement realloc of struct pid_t *p_ch
+
+        }
+      else
+        {
+          // too much children process, error.
+          // DA RIVEDERE
+          panic("too many processes. proc table is full\n");
+          return 1;
+
+        }
+
+      return 0;
+}
+
+
 #endif

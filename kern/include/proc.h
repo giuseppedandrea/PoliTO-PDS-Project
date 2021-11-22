@@ -62,6 +62,7 @@ struct vnode;
  * without sleeping.
  */
 
+typedef struct _children *children;
 
 struct proc {
 	char *p_name;			/* Name of this process */
@@ -80,8 +81,17 @@ struct proc {
   pid_t p_pid;                    /* process pid */
   struct semaphore *p_sem;
   struct openfile *fileTable[OPEN_MAX];
+
+  // father pid
+  pid_t fath_pid;
+  // childern process, managed as a vector of pid
+  children ch_pid;
+  
+  
 #endif
 };
+
+
 
 /* This is the process structure for the kernel and for kernel-only threads. */
 extern struct proc *kproc;
@@ -107,6 +117,7 @@ struct addrspace *proc_getas(void);
 /* Change the address space of the current process, and return the old one. */
 struct addrspace *proc_setas(struct addrspace *);
 
+
 #if OPT_SHELL
 /* wait for process termination, and return exit status */
 int proc_wait(struct proc *proc);
@@ -114,8 +125,9 @@ int proc_wait(struct proc *proc);
 struct proc *proc_search_pid(pid_t pid);
 /* signal end/exit of process */
 void proc_signal_end(struct proc *proc);
-/* Copy filetable from a process to another process */
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest);
+int procChild_add(struct proc *fath, struct proc *ch);
+
 #endif
 
 #endif /* _PROC_H_ */

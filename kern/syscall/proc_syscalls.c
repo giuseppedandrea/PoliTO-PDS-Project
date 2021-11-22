@@ -34,10 +34,11 @@ sys__exit(int status)
   (void) status; // TODO: status handling
 }
 
+#if OPT_SHELL
+
 int
 sys_waitpid(pid_t pid, userptr_t statusp, int options)
 {
-#if OPT_WAITPID
   struct proc *p = proc_search_pid(pid);
   int s;
   (void)options; /* not handled */
@@ -46,34 +47,28 @@ sys_waitpid(pid_t pid, userptr_t statusp, int options)
   if (statusp!=NULL) 
     *(int*)statusp = s;
   return pid;
-#else
-  (void)options; /* not handled */
-  (void)pid;
-  (void)statusp;
-  return -1;
-#endif
 }
 
+#endif
 pid_t sys_getpid(void)
 {
+      struct proc *p;
+      
 #if OPT_SHELL
-  struct proc *p;
-
-  KASSERT(curproc != NULL);
-
-  P(curproc->p_sem);
-  p=curproc;
-  V(curproc->p_sem);
-
-  return p->p_pid;
+       KASSERT(curproc != NULL);
+     
+      P(curproc->p_sem);
+      p=curproc;
+      V(curproc->p_sem);
+      
+      return p->p_pid;
 #else
-  return -1;
+      return -1;
 #endif
 }
 
 #if OPT_FORK
-static void
-call_enter_forked_process(void *tfv, unsigned long dummy) {
+static void call_enter_forked_process(void *tfv, unsigned long dummy) {
   struct trapframe *tf = (struct trapframe *)tfv;
   (void)dummy;
   enter_forked_process(tf); 
@@ -88,13 +83,13 @@ int sys_fork(struct trapframe *ctf, pid_t *retval) {
 
   KASSERT(curproc != NULL);
 
-  newp = proc_create_runprogram(curproc->p_name);
+  newp = proc_create_runprogram(curproc->p_name); // create process and set *p_cwd
   if (newp == NULL) {
     return ENOMEM;
   }
 
   /* done here as we need to duplicate the address space 
-     of thbe current process */
+     of the current process */
   as_copy(curproc->p_addrspace, &(newp->p_addrspace));
   if(newp->p_addrspace == NULL){
     proc_destroy(newp); 
@@ -111,8 +106,15 @@ int sys_fork(struct trapframe *ctf, pid_t *retval) {
   }
   memcpy(tf_child, ctf, sizeof(struct trapframe));
 
-  /* TO BE DONE: linking parent/child, so that child terminated 
-     on parent exit */
+  result=procChild_add(curproc, newp);
+
+  if(result){
+    proc_destroy(newp);
+    kfree(tf_child);
+    // add remove child struct
+   
+    return ENOMEM;
+  }
 
   result = thread_fork(
 		 curthread->t_name, newp,
