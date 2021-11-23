@@ -91,7 +91,6 @@ struct proc *proc_search_pid(pid_t pid) {
       KASSERT(pid>=0 && pid<__PID_MAX); // fix this
 
       p = _PROCTABLE_proc(pid);
-      p = processTable.proc[pid];
       
       KASSERT(p->p_pid==pid); // fix this
       return p;
@@ -199,8 +198,12 @@ static int procChildren_create(struct proc *p)
       p->ch_pid=(struct _children *) kmalloc(sizeof(*p->ch_pid));
       p->ch_pid->p_ch=(pid_t *) kmalloc(dim*sizeof(pid_t));
       p->ch_pid->n_ch=dim;
+      p->ch_pid->last_ch=0;
       
-      p->fath_pid=p->p_pid;
+      // father pid set as same pid
+      p->fath_pid=p->p_pid; 
+
+
 
       return 0;
 }
@@ -573,7 +576,7 @@ int procChild_add(struct proc *fath, struct proc *ch)
       if(i>fath->ch_pid->n_ch)
         i=1;
 
-      while(i!=fath->ch_pid->last_ch)
+      while(i != fath->ch_pid->last_ch)
         {
           if(fath->ch_pid->p_ch[i]==0){
             fath->ch_pid->p_ch[i]=ch_pid;
@@ -584,7 +587,7 @@ int procChild_add(struct proc *fath, struct proc *ch)
 
           i++;
           
-          if(i>fath->ch_pid->n_ch)
+          if(i > fath->ch_pid->n_ch)
             i=1;
 
         }
@@ -598,7 +601,7 @@ int procChild_add(struct proc *fath, struct proc *ch)
         {
           // too much children process, error.
           // DA RIVEDERE
-          panic("too many processes. proc table is full\n");
+          panic("too many children processes.\n");
           return 1;
 
         }

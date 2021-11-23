@@ -4,25 +4,25 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Copy Config",
+            "label": "Copy oldConfig",
             "type": "shell",
             "command": "cp kern/conf/DUMBVM conf/${input:VersionName}",
             "problemMatcher": []
         },
         {
-            "label": "Run Config",
+            "label": "./config nameNewConfig",
             "type": "shell",
             "command": "cd kern/conf/;./config ${input:VersionName}",
             "problemMatcher": []
         },
         {
-            "label": "Make Depend",
+            "label": "bmake depend",
             "type": "shell",
             "command": "cd kern/compile/${input:VersionName};bmake depend",
             "problemMatcher": []
         },
         {
-            "label": "Build and Install",
+            "label": "Build and Install (bmake, bmake install)",
             "type": "shell",
             "command": "cd kern/compile/${input:VersionName};bmake;bmake install",
             "problemMatcher": [],
@@ -32,7 +32,7 @@
             }
         },
         {
-            "label": "Run OS161",
+            "label": "Run OS161 (debug)",
             "type": "shell",
             "command": "cd ${env:HOME}/os161/root;sys161 -w kernel",
             "problemMatcher": []
