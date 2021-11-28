@@ -150,20 +150,20 @@ test(int nowait)
 	 */
 
 
-	printf("PRE FORK 1\n");
+	//printf("PRE FORK 1\n");
 	pid0 = dofork();
 	depth++;
 	putchar('A');
 	if (depth != 1) {
 		warnx("depth %d, should be 1", depth);
 	}
-	printf("POST FORK 1\n");
+	//printf("POST FORK 1\n");
 	check();
 
 
-	printf("PRE FORK 2\n");
+	//printf("PRE FORK 2\n");
 	pid1 = dofork();
-	printf("POST FORK 1\n");
+	//printf("POST FORK 1\n");
 	depth++;
 	putchar('B');
 	if (depth != 2) {

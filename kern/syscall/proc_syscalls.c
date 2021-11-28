@@ -58,9 +58,9 @@ pid_t sys_getpid(void)
 #if OPT_SHELL
        KASSERT(curproc != NULL);
      
-      proc_signal_wait(curproc); // !!!!!!!!
+      spinlock_acquire(&(curproc->p_lock));
       p=curproc;
-      proc_signal_end(curproc); // !!!!!!!!
+      spinlock_release(&(curproc->p_lock));
       
       return p->p_pid;
 #else
@@ -79,26 +79,27 @@ static void call_enter_forked_process(void *tfv, unsigned long dummy) {
 
 int sys_fork(struct trapframe *ctf, pid_t *retval) {
   struct trapframe *tf_child;
-  struct proc *newp, *fathp;
-  int result;
+  struct proc *newp;// *fathp;
+ int result;
+
 
   KASSERT(curproc != NULL);
-  fathp=curproc;
+  //curproc=curproc;
 
-  newp = proc_create_runprogram(fathp->p_name); // create process and set *p_cwd
+  newp = proc_create_runprogram(curproc->p_name); // create process and set *p_cwd
   if (newp == NULL) {
     return ENOMEM;
   }
 
   /* done here as we need to duplicate the address space 
      of the current process */
-  as_copy(fathp->p_addrspace, &(newp->p_addrspace));
+  as_copy(curproc->p_addrspace, &(newp->p_addrspace));
   if(newp->p_addrspace == NULL){
     proc_destroy(newp); 
     return ENOMEM; 
   }
 
-  proc_file_table_copy(newp,fathp);
+  proc_file_table_copy(curproc,newp);
 
   /* we need a copy of the parent's trapframe */
   tf_child = kmalloc(sizeof(struct trapframe));
@@ -108,7 +109,7 @@ int sys_fork(struct trapframe *ctf, pid_t *retval) {
   }
   memcpy(tf_child, ctf, sizeof(struct trapframe));
 
-  result=procChild_add(fathp, newp);
+  result=procChild_add(curproc, newp);
 
   if(result){
     proc_destroy(newp);
