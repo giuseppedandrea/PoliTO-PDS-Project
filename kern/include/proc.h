@@ -125,8 +125,11 @@ int proc_wait(struct proc *proc);
 struct proc *proc_search_pid(pid_t pid);
 /* signal end/exit of process */
 void proc_signal_end(struct proc *proc);
+void proc_signal_wait(struct proc *proc);
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest);
 int procChild_add(struct proc *fath, struct proc *ch);
+int procChild_remove(struct proc *proc);
+
 
 #endif
 

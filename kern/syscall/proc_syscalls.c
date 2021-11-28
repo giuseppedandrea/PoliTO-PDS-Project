@@ -15,10 +15,12 @@
 /*
  * system calls for process management
  */
-void
-sys__exit(int status)
+void sys__exit(int status)
 {
-#if OPT_WAITPID
+#if OPT_SHELL
+  // probably here must wait on semaphone due to cuncurrent access to 
+  // a critical section (curproc)
+  // SEGUIRE TRAIETTORIA CONCORRENZA PROCESSI
   struct proc *p = curproc;
   p->p_status = status & 0xff; /* just lower 8 bits returned */
   proc_remthread(curthread);
@@ -36,8 +38,7 @@ sys__exit(int status)
 
 #if OPT_SHELL
 
-int
-sys_waitpid(pid_t pid, userptr_t statusp, int options)
+int sys_waitpid(pid_t pid, userptr_t statusp, int options)
 {
   struct proc *p = proc_search_pid(pid);
   int s;
@@ -57,9 +58,9 @@ pid_t sys_getpid(void)
 #if OPT_SHELL
        KASSERT(curproc != NULL);
      
-      P(curproc->p_sem);
+      proc_signal_wait(curproc); // !!!!!!!!
       p=curproc;
-      V(curproc->p_sem);
+      proc_signal_end(curproc); // !!!!!!!!
       
       return p->p_pid;
 #else
@@ -67,7 +68,7 @@ pid_t sys_getpid(void)
 #endif
 }
 
-#if OPT_FORK
+#if OPT_SHELL
 static void call_enter_forked_process(void *tfv, unsigned long dummy) {
   struct trapframe *tf = (struct trapframe *)tfv;
   (void)dummy;
@@ -78,25 +79,26 @@ static void call_enter_forked_process(void *tfv, unsigned long dummy) {
 
 int sys_fork(struct trapframe *ctf, pid_t *retval) {
   struct trapframe *tf_child;
-  struct proc *newp;
+  struct proc *newp, *fathp;
   int result;
 
   KASSERT(curproc != NULL);
+  fathp=curproc;
 
-  newp = proc_create_runprogram(curproc->p_name); // create process and set *p_cwd
+  newp = proc_create_runprogram(fathp->p_name); // create process and set *p_cwd
   if (newp == NULL) {
     return ENOMEM;
   }
 
   /* done here as we need to duplicate the address space 
      of the current process */
-  as_copy(curproc->p_addrspace, &(newp->p_addrspace));
+  as_copy(fathp->p_addrspace, &(newp->p_addrspace));
   if(newp->p_addrspace == NULL){
     proc_destroy(newp); 
     return ENOMEM; 
   }
 
-  proc_file_table_copy(newp,curproc);
+  proc_file_table_copy(newp,fathp);
 
   /* we need a copy of the parent's trapframe */
   tf_child = kmalloc(sizeof(struct trapframe));
@@ -106,7 +108,7 @@ int sys_fork(struct trapframe *ctf, pid_t *retval) {
   }
   memcpy(tf_child, ctf, sizeof(struct trapframe));
 
-  result=procChild_add(curproc, newp);
+  result=procChild_add(fathp, newp);
 
   if(result){
     proc_destroy(newp);
@@ -131,4 +133,6 @@ int sys_fork(struct trapframe *ctf, pid_t *retval) {
 
   return 0;
 }
+
+
 #endif

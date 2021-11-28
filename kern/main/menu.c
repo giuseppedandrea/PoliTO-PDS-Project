@@ -115,7 +115,7 @@ int
 common_prog(int nargs, char **args)
 {
 	struct proc *proc;
-	int result;
+	int result, exit_code;
 
 	/* Create a process for the new program to run in. */
 	proc = proc_create_runprogram(args[0] /* name */);
@@ -133,10 +133,11 @@ common_prog(int nargs, char **args)
 		return result;
 	}
 
-	/*
-	 * The new process will be destroyed when the program exits...
-	 * once you write the code for handling that.
-	 */
+#if OPT_SHELL
+	exit_code=proc_wait(proc);
+	return 0;
+#endif
+	(void) exit_code;
 
 	return 0;
 }

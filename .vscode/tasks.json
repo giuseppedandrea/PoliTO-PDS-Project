@@ -24,7 +24,7 @@
         {
             "label": "Build and Install (bmake, bmake install)",
             "type": "shell",
-            "command": "cd kern/compile/${input:VersionName};bmake;bmake install",
+            "command": "cd kern/compile/SHELL;bmake;bmake install",
             "problemMatcher": [],
             "group": {
                 "kind": "build",

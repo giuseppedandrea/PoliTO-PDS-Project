@@ -146,18 +146,24 @@ test(int nowait)
 	 * child is returning from the write() inside putchar()
 	 * instead of from fork() and thus skipping the depth++. This
 	 * is a fairly common problem caused by races in the kernel
-	 * fork code.
+	 * fork code.ù
 	 */
 
+
+	printf("PRE FORK 1\n");
 	pid0 = dofork();
 	depth++;
 	putchar('A');
 	if (depth != 1) {
 		warnx("depth %d, should be 1", depth);
 	}
+	printf("POST FORK 1\n");
 	check();
 
+
+	printf("PRE FORK 2\n");
 	pid1 = dofork();
+	printf("POST FORK 1\n");
 	depth++;
 	putchar('B');
 	if (depth != 2) {

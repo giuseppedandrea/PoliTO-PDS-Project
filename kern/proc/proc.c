@@ -186,7 +186,6 @@ static void processTable_remove(struct proc *proc) {
 }
 
 
-#endif
 
 static int procChildren_create(struct proc *p)
 {
@@ -207,6 +206,8 @@ static int procChildren_create(struct proc *p)
 
       return 0;
 }
+
+#endif
 
 /*
  * Create a proc structure.
@@ -261,8 +262,7 @@ static struct proc *proc_create(const char *name)
  * Note: nothing currently calls this. Your wait/exit code will
  * probably want to do so.
  */
-void
-proc_destroy(struct proc *proc)
+void proc_destroy(struct proc *proc)
 {
       /*
        * You probably want to destroy and null out much of the
@@ -339,6 +339,7 @@ proc_destroy(struct proc *proc)
       spinlock_cleanup(&proc->p_lock);
 
       processTable_remove(proc);
+      procChild_remove(proc);
 
       kfree(proc->p_name);
       kfree(proc);
@@ -347,8 +348,7 @@ proc_destroy(struct proc *proc)
 /*
  * Create the process structure for the kernel.
  */
-void
-proc_bootstrap(void)
+void proc_bootstrap(void)
 {
 
       kproc = proc_create("[kernel]");
@@ -376,8 +376,7 @@ proc_bootstrap(void)
  * It will have no address space and will inherit the current
  * process's (that is, the kernel menu's) current directory.
  */
-struct proc *
-proc_create_runprogram(const char *name)
+struct proc *proc_create_runprogram(const char *name)
 {
       struct proc *newproc;
 
@@ -416,8 +415,7 @@ proc_create_runprogram(const char *name)
  * the timer interrupt context switch, and any other implicit uses
  * of "curproc".
  */
-int
-proc_addthread(struct proc *proc, struct thread *t)
+int proc_addthread(struct proc *proc, struct thread *t)
 {
       int spl;
 
@@ -443,8 +441,7 @@ proc_addthread(struct proc *proc, struct thread *t)
  * the timer interrupt context switch, and any other implicit uses
  * of "curproc".
  */
-void
-proc_remthread(struct thread *t)
+void proc_remthread(struct thread *t)
 {
       struct proc *proc;
       int spl;
@@ -470,8 +467,7 @@ proc_remthread(struct thread *t)
  * some other method to make this safe. Otherwise the returned address
  * space might disappear under you.
  */
-struct addrspace *
-proc_getas(void)
+struct addrspace *proc_getas(void)
 {
       struct addrspace *as;
       struct proc *proc = curproc;
@@ -490,8 +486,7 @@ proc_getas(void)
  * Change the address space of (the current) process. Return the old
  * one for later restoration or disposal.
  */
-struct addrspace *
-proc_setas(struct addrspace *newas)
+struct addrspace *proc_setas(struct addrspace *newas)
 {
       struct addrspace *oldas;
       struct proc *proc = curproc;
@@ -520,24 +515,19 @@ int proc_wait(struct proc *proc)
 
       KASSERT(proc != kproc);
 
-      /* wait on semaphore or condition variable */ 
-      P(proc->p_sem);
+      /* wait on semaphore*/ 
+      proc_signal_wait(proc);
 
       return_status = proc->p_status;
       proc_destroy(proc);
       return return_status;
 }
 
-void proc_signal_end(struct proc *proc)
-{
-      V(proc->p_sem);
-}
 
 #endif
 
 #if OPT_FILE
-void 
-proc_file_table_copy(struct proc *psrc, struct proc *pdest) {
+void proc_file_table_copy(struct proc *psrc, struct proc *pdest) {
       int fd;
 
       for (fd=0; fd<OPEN_MAX; fd++) {
@@ -564,12 +554,11 @@ int procChild_add(struct proc *fath, struct proc *ch)
         return 1;
 
       KASSERT(fath!=kproc); // father process can't be kproc
-
+      
       fath_pid=fath->p_pid;
       ch_pid=ch->p_pid;
       
       ch->fath_pid=fath_pid;
-
 
       i = fath->ch_pid->last_ch+1;
 
@@ -592,22 +581,52 @@ int procChild_add(struct proc *fath, struct proc *ch)
 
         }
 
-      if(!found && fath->ch_pid->n_ch<__PID_CHILDREN_MAX)
-        {
-          // must implement realloc of struct pid_t *p_ch
+      if(!found)
+      {
+          if(fath->ch_pid->n_ch<__PID_CHILDREN_MAX)
+          {
+            // must implement realloc of struct pid_t *p_ch
 
-        }
-      else
-        {
-          // too much children process, error.
-          // DA RIVEDERE
-          panic("too many children processes.\n");
-          return 1;
+          }
+        else
+          {
+            // too much children process, error.
+            // DA RIVEDERE
+            panic("too many children processes.\n");
+            return 1;
 
-        }
-
+          }
+      }
       return 0;
 }
+
+int procChild_remove(struct proc *proc)
+{
+
+      KASSERT(proc!=NULL); //da rivedere
+
+      // remove process from the father list
+      if(proc->fath_pid!=proc->p_pid)
+      {
+        // Gestire tutti errori
+        _PROCTABLE_proc(proc->fath_pid)->ch_pid->p_ch[proc->p_pid]=0;
+      }
+      // gestire deallocazione proc->children
+
+    return 0; //gestire errori
+}
+
+void proc_signal_wait(struct proc *proc)
+{
+      P(proc->p_sem);
+}
+
+
+void proc_signal_end(struct proc *proc)
+{
+      V(proc->p_sem);
+}
+
 
 
 #endif
