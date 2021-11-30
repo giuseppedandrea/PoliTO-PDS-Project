@@ -11,13 +11,15 @@ struct node_s {
 };
 
 struct list_s {
-    void *data;
     node_t *head;
     node_t *tail;
+    size_t cnt;
 };
 
+////////////////////////////////////////////////////////////
+// internal functions
 
-node_t *newNode(const void *data, node_t *next, node_t *prev) {
+static node_t *newNode(void *data, node_t *next, node_t *prev) {
     node_t *n = kmalloc(sizeof(*n));
     if (n == NULL) {
         return NULL;
@@ -30,7 +32,7 @@ node_t *newNode(const void *data, node_t *next, node_t *prev) {
     return n;
 }
 
-int cmpKeys(const void *av, const void *bv, size_t len) {
+static int cmpKeys(const void *av, const void *bv, size_t len) {
     const unsigned char *a = av;
     const unsigned char *b = bv;
     size_t i;
@@ -44,19 +46,31 @@ int cmpKeys(const void *av, const void *bv, size_t len) {
     return 0;
 }
 
-list_t *list_create(void) {
-    list_t *l = kmalloc(sizeof(*l));
+////////////////////////////////////////////////////////////
+// external interface
+
+list list_create(void) {
+    list l = kmalloc(sizeof(*l));
     if (l == NULL) {
         return NULL;
     }
 
     l->head = NULL;
     l->tail = NULL;
+    l->cnt = 0;
 
     return l;
 }
 
-bool list_insertHead(list_t *l, void *data) {
+bool list_isEmpty(list l) {
+    return l->cnt == 0;
+}
+
+size_t list_size(list l) {
+    return l->cnt;
+}
+
+bool list_insertHead(list l, void *data) {
     if ((l == NULL) || (data == NULL)) {
         return false;
     }
@@ -73,10 +87,12 @@ bool list_insertHead(list_t *l, void *data) {
         l->head = l->tail = n;
     }
 
+    l->cnt++;
+
     return true;
 }
 
-bool list_insertTail(list_t *l, void *data) {
+bool list_insertTail(list l, void *data) {
     if ((l == NULL) || (data == NULL)) {
         return false;
     }
@@ -93,11 +109,13 @@ bool list_insertTail(list_t *l, void *data) {
         l->head = l->tail = n;
     }
 
+    l->cnt++;
+
     return true;
 }
 
-void *list_searchByKey(list_t *l, void *key, size_t key_offset, size_t key_size) {
-    if (l == NULL) {
+void *list_searchByKey(list l, const void *key, size_t key_offset, size_t key_size) {
+    if ((l == NULL) || (key == NULL) || (key_size == 0)) {
         return NULL;
     }
 
@@ -111,12 +129,13 @@ void *list_searchByKey(list_t *l, void *key, size_t key_offset, size_t key_size)
     return NULL;
 }
 
-bool list_deleteHead(list_t *l) {
+void *list_deleteHead(list l) {
     if ((l == NULL) || (l->head == NULL)) {
-        return false;
+        return NULL;
     }
 
     node_t *n = l->head;
+    void *data = n->data;
     l->head = n->next;
     if (l->head == NULL) {
         l->tail = l->head;
@@ -124,75 +143,15 @@ bool list_deleteHead(list_t *l) {
         l->head->prev = NULL;
     }
 
-    free(n);
+    kfree(n);
 
-    return true;
+    l->cnt--;
+
+    return data;
 }
 
-bool list_deleteTail(list_t *l) {
+void *list_deleteTail(list l) {
     if ((l == NULL) || (l->tail == NULL)) {
-        return false;
-    }
-
-    node_t *n = l->tail;
-    l->tail = n->prev;
-    if (l->tail == NULL) {
-        l->head = l->tail;
-    } else {
-        l->tail->next = NULL;
-    }
-
-    free(n);
-
-    return true;
-}
-
-bool list_deleteByKey(list_t *l, void *key, size_t key_offset, size_t key_size) {
-    if (l == NULL) {
-        return false;
-    }
-
-    node_t *n;
-    for (n = l->head; n != NULL; n=n->next) {
-        if (cmpKeys(key, n->data + key_offset, key_size) == 0) {
-            if (n == l->head) {
-                list_deleteHead(l);
-            } else if (n == l->tail) {
-                list_deleteTail(l);
-            } else {
-                n->prev->next = n->next;
-                n->next->prev = n->prev;
-                free(n);
-            }
-
-            return true;
-        }
-    }
-
-    return false;
-}
-
-void *list_extractHead(list_t *l) {
-    if (l == NULL) {
-        return NULL;
-    }
-
-    node_t *n = l->head;
-    void *data = n->data;
-    l->head = n->next;
-    if (l->head == NULL) {
-        l->tail = l->head;
-    } else {
-        l->head->prev = NULL;
-    }
-
-    free(n);
-
-    return data;
-}
-
-void *list_extractTail(list_t *l) {
-    if (l == NULL) {
         return NULL;
     }
 
@@ -205,29 +164,33 @@ void *list_extractTail(list_t *l) {
         l->tail->next = NULL;
     }
 
-    free(n);
+    kfree(n);
+
+    l->cnt--;
 
     return data;
 }
 
-void *list_extractByKey(list_t *l, void *key, size_t key_offset, size_t key_size) {
-    if (l == NULL) {
+void *list_deleteByKey(list l, const void *key, size_t key_offset, size_t key_size) {
+    if ((l == NULL) || (key == NULL) || (key_size == 0)) {
         return NULL;
     }
 
     node_t *n;
-    void *data;
     for (n = l->head; n != NULL; n=n->next) {
        if (cmpKeys(key, n->data + key_offset, key_size) == 0) {
+            void *data;
+
             if (n == l->head) {
-                list_extractHead(l);
+                data = list_deleteHead(l);
             } else if (n == l->tail) {
-                list_extractTail(l);
+                data = list_deleteTail(l);
             } else {
                 n->prev->next = n->next;
                 n->next->prev = n->prev;
                 data = n->data;
-                free(n);
+                kfree(n);
+                l->cnt--;
             }
 
             return data;
@@ -237,16 +200,25 @@ void *list_extractByKey(list_t *l, void *key, size_t key_offset, size_t key_size
     return NULL;
 }
 
-void list_destroy(list_t *l) {
+void list_destroy(list l) {
     if (l == NULL) {
         return;
     }
 
-    node_t *n;
-    for (n = l->head; n != NULL; n = n->next) {
-        kfree(n);
+    node_t *n, *tmp;
+    n = l->head;
+    while (n != NULL) {
+        tmp = n;
+        n = n->next;
+        kfree(tmp);
     }
+
     kfree(l);
+
+    // Although the memory pointed to by l is freed, since the pointer l is
+    // passed by value (this function operates on a copy of the pointer and
+    // never modifies the original), the caller will be responsible for not
+    // using the pointer after calling to list_destroy.
 
     return;
 }

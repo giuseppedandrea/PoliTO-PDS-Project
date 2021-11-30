@@ -456,3 +456,4 @@ defoption waitpid
 defoption synch
 
 defoption shell
+optfile shell lib/list.c
