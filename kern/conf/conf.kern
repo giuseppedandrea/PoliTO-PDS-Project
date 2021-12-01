@@ -455,4 +455,6 @@ defoption waitpid
 
 defoption synch
 
-defoption shell
+defoption   shell    
+optfile     shell    vfs/filetable.c    
+

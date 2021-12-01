@@ -80,7 +80,7 @@ static void call_enter_forked_process(void *tfv, unsigned long dummy) {
 int sys_fork(struct trapframe *ctf, pid_t *retval) {
   struct trapframe *tf_child;
   struct proc *newp;// *fathp;
- int result;
+  int result;
 
 
   KASSERT(curproc != NULL);

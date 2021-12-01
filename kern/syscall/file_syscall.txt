@@ -1,3 +1,11 @@
+Previous implementation of file_syscall
+
+/*
+ * AUthor: G.Cabodi
+ * Very simple implementation of sys_read and sys_write.
+ * just works (partially) on stdin/stdout
+ */
+
 #include <types.h>
 #include <kern/unistd.h>
 #include <kern/errno.h>
@@ -6,7 +14,7 @@
 #include <current.h>
 #include <lib.h>
 
-#if OPT_SHELL
+#if OPT_FILE
 
 #include <copyinout.h>
 #include <vnode.h>
@@ -14,7 +22,6 @@
 #include <limits.h>
 #include <uio.h>
 #include <proc.h>
-
 
 /* max num of system wide open files */
 #define SYSTEM_OPEN_MAX (10*OPEN_MAX)
@@ -33,42 +40,6 @@ struct openfile systemFileTable[SYSTEM_OPEN_MAX];
 void openfileIncrRefCount(struct openfile *of) {
   if (of!=NULL)
     of->countRef++;
-}
-
-/*
- * file system calls for open/close
- */
-int
-sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
-{
-  int fd, i, ind_table;
-  struct vnode *v;
-  struct openfile *of=NULL; 	
-  int result;
-
-  result = vfs_open((char *)path, openflags, mode, &v);
-  if (result) {
-    *errp = ENOENT;
-    return -1;
-  }
-
-  // funzione ritorna indice del vnode nella tabella di sistema oppure errore
-  ind_table=fileTable_add(v);
-  if(ind_table==-1)
-          *errp = ENFILE;
-  else {
-      for (fd=STDERR_FILENO+1; fd<OPEN_MAX; fd++) {
-        if (curproc->fileTable[fd] == NULL) {
-            curproc->fileTable[fd] = of;
-            return fd;
-      }
-    }
-    // no free slot in process open file table
-    *errp = EMFILE;
-  }
-  
-  vfs_close(v);
-  return -1;
 }
 
 #if USE_KERNEL_BUFFER
@@ -201,7 +172,50 @@ file_write(int fd, userptr_t buf_ptr, size_t size) {
 
 #endif
 
+/*
+ * file system calls for open/close
+ */
+int
+sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
+{
+  int fd, i;
+  struct vnode *v;
+  struct openfile *of=NULL;; 	
+  int result;
 
+  result = vfs_open((char *)path, openflags, mode, &v);
+  if (result) {
+    *errp = ENOENT;
+    return -1;
+  }
+  /* search system open file table */
+  for (i=0; i<SYSTEM_OPEN_MAX; i++) {
+    if (systemFileTable[i].vn==NULL) {
+      of = &systemFileTable[i];
+      of->vn = v;
+      of->offset = 0; // TODO: handle offset with append
+      of->countRef = 1;
+      break;
+    }
+  }
+  if (of==NULL) { 
+    // no free slot in system open file table
+    *errp = ENFILE;
+  }
+  else {
+    for (fd=STDERR_FILENO+1; fd<OPEN_MAX; fd++) {
+      if (curproc->fileTable[fd] == NULL) {
+	curproc->fileTable[fd] = of;
+	return fd;
+      }
+    }
+    // no free slot in process open file table
+    *errp = EMFILE;
+  }
+  
+  vfs_close(v);
+  return -1;
+}
 
 /*
  * file system calls for open/close
