@@ -187,7 +187,7 @@ static int procChildren_create(struct proc *p)
       if(p==NULL)
         return 1; // error on passing process
 
-      p->ch_pid=(struct _children *) kmalloc(sizeof(*p->ch_pid));
+      p->ch_pid=(struct _children *) kmalloc(sizeof(*(p->ch_pid)));
       p->ch_pid->p_ch=(pid_t *) kmalloc(dim*sizeof(pid_t));
       p->ch_pid->n_ch=dim;
       p->ch_pid->last_ch=0;
@@ -205,7 +205,6 @@ static int procChildren_create(struct proc *p)
 static struct proc *proc_create(const char *name)
 {
       struct proc *proc;
-      pid_t pid;
 
       proc = kmalloc(sizeof(*proc));
       if (proc == NULL) {
@@ -227,6 +226,8 @@ static struct proc *proc_create(const char *name)
       proc->p_cwd = NULL;
 
 #if OPT_SHELL
+      pid_t pid;
+
       if(processTable.active)
         {
           // im creating a user process
@@ -328,8 +329,10 @@ void proc_destroy(struct proc *proc)
       KASSERT(proc->p_numthreads == 0);
       spinlock_cleanup(&proc->p_lock);
 
+#if OPT_SHELL
       processTable_remove(proc);
       procChild_remove(proc);
+#endif
 
       kfree(proc->p_name);
       kfree(proc);

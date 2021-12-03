@@ -52,11 +52,11 @@ int sys_waitpid(pid_t pid, userptr_t statusp, int options)
 
 pid_t sys_getpid(void)
 {
+#if OPT_SHELL
       struct proc *p;
       
-#if OPT_SHELL
-       KASSERT(curproc != NULL);
-     
+      KASSERT(curproc != NULL);
+      
       spinlock_acquire(&(curproc->p_lock));
       p=curproc;
       spinlock_release(&(curproc->p_lock));
