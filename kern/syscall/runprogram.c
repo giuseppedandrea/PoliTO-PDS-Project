@@ -43,6 +43,7 @@
 #include <vm.h>
 #include <vfs.h>
 #include <syscall.h>
+#include <copyinout.h>
 #include <test.h>
 
 /*
@@ -51,9 +52,15 @@
  *
  * Calls vfs_open on progname and thus may destroy it.
  */
+#if OPT_SHELL
+int
+runprogram(char *progname, int argc, char *argv[])
+{
+#else
 int
 runprogram(char *progname)
 {
+#endif
 	struct addrspace *as;
 	struct vnode *v;
 	vaddr_t entrypoint, stackptr;
@@ -97,10 +104,87 @@ runprogram(char *progname)
 		return result;
 	}
 
+#if OPT_SHELL
+	int i;
+	vaddr_t *argvptr;
+	size_t len, argvptr_size;
+
+	/* Allocate in the kernel address space a temporary array to store 
+	   argv poiters */
+	argvptr_size = (argc + 1) * sizeof(vaddr_t);
+	argvptr = kmalloc(argvptr_size);
+
+	/* Load the argv strings onto the stack of the user address space */
+	argvptr[argc] = 0;
+	for (i = argc - 1; i >= 0; i--) {
+		len = strlen(argv[i]) + 1;
+		stackptr -= len;
+		argvptr[i] = stackptr;
+		copyout(argv[i], (userptr_t)stackptr, len);
+	}
+
+	/* Adjust the stack pointer to be an address multiple of 8 because
+	   the largest representable data (double) is 8 bytes */
+	stackptr -= argvptr_size;
+	if (stackptr % 8) {
+		stackptr -= stackptr % 8;
+	}
+
+	/* Load the argv pointers onto the stack of the user address space */
+	copyout(argvptr, (userptr_t)stackptr, argvptr_size);
+
+	/* Free the memory allocated in the kernel space for the temporary
+	   array of argv pointers */
+	kfree(argvptr);
+
+	/* Stack layout of the user address space
+	* e.g. `p testbin/add 19 1`
+	* ==> argc = 3
+	*     argv[0] = "testbin/add"
+	*     argv[1] = "19"
+	*     argv[2] = "1"
+	* +------------------+ <-- stackptr (address multiple of 8)
+	* | argv[0] (char *) | ----\
+	* +------------------+     |
+	* | argv[1] (char *) | --------\
+	* +------------------+     |   |
+	* | argv[2] (char *) | ------------\
+	* +------------------+     |   |   |
+	* | NULL             |     |   |   |
+	* +------------------+     |   |   |
+	* | padding          |     |   |   |
+	* +------------------+ <---/   |   |
+	* | 't'              |         |   |
+	* +------------------+         |   |
+	* | 'e'              |         |   |
+	* +------------------+         |   |
+	* | ...              |         |   |
+	* +------------------+         |   |
+	* | 'd'              |         |   |
+	* +------------------+         |   |
+	* | '\0'             |         |   |
+	* +------------------+ <-------/   |
+	* | '1'              |             |
+	* +------------------+             |
+	* | '9'              |             |
+	* +------------------+             |
+	* | '\0'             |             |
+	* +------------------+ <-----------/
+	* | '1'              |
+	* +------------------+
+	* | '\0'             |
+	* +------------------+ */
+
+	/* Warp to user mode. */
+	enter_new_process(argc /*argc*/, (userptr_t)stackptr /*userspace addr of argv*/,
+			  NULL /*userspace addr of environment*/,
+			  stackptr, entrypoint);
+#else
 	/* Warp to user mode. */
 	enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
 			  NULL /*userspace addr of environment*/,
 			  stackptr, entrypoint);
+#endif
 
 	/* enter_new_process does not return. */
 	panic("enter_new_process returned\n");
