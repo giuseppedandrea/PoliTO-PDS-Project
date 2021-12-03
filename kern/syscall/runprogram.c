@@ -113,6 +113,9 @@ runprogram(char *progname)
 	   argv poiters */
 	argvptr_size = (argc + 1) * sizeof(vaddr_t);
 	argvptr = kmalloc(argvptr_size);
+	if (argvptr == NULL) {
+		return ENOMEM;
+	}
 
 	/* Load the argv strings onto the stack of the user address space */
 	argvptr[argc] = 0;
@@ -120,7 +123,10 @@ runprogram(char *progname)
 		len = strlen(argv[i]) + 1;
 		stackptr -= len;
 		argvptr[i] = stackptr;
-		copyout(argv[i], (userptr_t)stackptr, len);
+		result = copyout(argv[i], (userptr_t)stackptr, len);
+		if (result) {
+			return result;
+		}
 	}
 
 	/* Adjust the stack pointer to be an address multiple of 8 because
@@ -131,7 +137,10 @@ runprogram(char *progname)
 	}
 
 	/* Load the argv pointers onto the stack of the user address space */
-	copyout(argvptr, (userptr_t)stackptr, argvptr_size);
+	result = copyout(argvptr, (userptr_t)stackptr, argvptr_size);
+	if (result) {
+		return result;
+	}
 
 	/* Free the memory allocated in the kernel space for the temporary
 	   array of argv pointers */
