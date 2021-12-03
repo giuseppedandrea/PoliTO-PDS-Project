@@ -78,12 +78,16 @@ static struct _processTable {
 
 #define _PROCTABLE_proc(pid) (processTable.proc[pid])
 
-struct _children{
+struct _children {
   pid_t *p_ch;
   int n_ch;
   int last_ch; 
 }; 
 
+struct _procFileTable {
+    int *fileTable;
+    int dimTable;
+};
 
 struct proc *proc_search_pid(pid_t pid) {
       struct proc *p;
@@ -194,7 +198,7 @@ static int procChildren_create(struct proc *p)
       if(p==NULL)
         return 1; // error on passing process
 
-      p->ch_pid=(struct _children *) kmalloc(sizeof(*p->ch_pid));
+      p->ch_pid=(struct _children *) kmalloc(sizeof(*(p->ch_pid)));
       p->ch_pid->p_ch=(pid_t *) kmalloc(dim*sizeof(pid_t));
       p->ch_pid->n_ch=dim;
       p->ch_pid->last_ch=0;
@@ -205,6 +209,18 @@ static int procChildren_create(struct proc *p)
 
 
       return 0;
+}
+
+static int fileTable_create(struct proc *p)
+{
+  int dim=25;
+
+   if(p==NULL)
+        return 1; // error on passing process
+
+      p->ft=(struct _procFileTable *) kmalloc(sizeof(*p->ft));
+      p->ft->fileTable=(int *) kmalloc(dim*sizeof(int));
+      p->ft->dimTable=dim;
 }
 
 #endif
@@ -248,11 +264,12 @@ static struct proc *proc_create(const char *name)
           if(procChildren_create(proc))
             return NULL; // allocation problem          
           
+          if(fileTable_create(proc))
+            return NULL; // allocation problem
         }
+
 #endif
-#if OPT_FILE
-      bzero(proc->fileTable,OPEN_MAX*sizeof(struct openfile *));
-#endif
+
       return proc;
 }
 
@@ -344,7 +361,6 @@ void proc_destroy(struct proc *proc)
       kfree(proc->p_name);
       kfree(proc);
 }
-
 /*
  * Create the process structure for the kernel.
  */
@@ -364,6 +380,7 @@ void proc_bootstrap(void)
       
 
       processTable.active = 1;
+
 #endif
 
 
@@ -627,6 +644,32 @@ void proc_signal_end(struct proc *proc)
       V(proc->p_sem);
 }
 
+
+/* File table of single process */
+int proc_fileTable_create(struct proc *proc)
+{
+
+
+
+}
+
+/* Adding on file table file descriptor of system file table */
+int proc_fileTable_add(struct proc *proc, int fd)
+{
+  int i;
+
+  // aggiungere nella fileTable del processo l'indice della tabella file di sistema
+  // PARTIRE DA QUI
+
+
+}
+
+/* Remove on file table file descriptor of system file table*/
+int proc_fileTable_remove(struct proc *proc, int fd)
+{
+
+
+}
 
 
 #endif
