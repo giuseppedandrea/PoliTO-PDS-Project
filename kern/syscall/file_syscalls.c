@@ -16,19 +16,8 @@
 #include <proc.h>
 
 
-/* max num of system wide open files */
-#define SYSTEM_OPEN_MAX (10*OPEN_MAX)
-
 #define USE_KERNEL_BUFFER 0
 
-/* system open file table */
-struct openfile {
-  struct vnode *vn;
-  off_t offset;	
-  unsigned int countRef;
-};
-
-struct openfile systemFileTable[SYSTEM_OPEN_MAX];
 
 void openfileIncrRefCount(struct openfile *of) {
   if (of!=NULL)
@@ -38,8 +27,7 @@ void openfileIncrRefCount(struct openfile *of) {
 /*
  * file system calls for open/close
  */
-int
-sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
+int sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
 {
   int fd, i, ind_table;
   struct vnode *v;
@@ -53,23 +41,46 @@ sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
   }
 
   // funzione ritorna indice del vnode nella tabella di sistema oppure errore
-  ind_table=fileTable_add(v);
+  ind_table=sys_fileTable_add(v);
   if(ind_table==-1)
           *errp = ENFILE;
   else {
-      for (fd=STDERR_FILENO+1; fd<OPEN_MAX; fd++) {
-        if (curproc->fileTable[fd] == NULL) {
-            curproc->fileTable[fd] = of;
-            return fd;
-      }
-    }
-    // no free slot in process open file table
-    *errp = EMFILE;
+      fd=proc_fileTable_add(p, ind_table);
+      if(fd)
+      // no free slot in process open file table
+        *errp = EMFILE;
+      else
+        return fd;     
   }
-  
+       
   vfs_close(v);
   return -1;
 }
+
+int
+sys_close(int fd)
+{
+  struct openfile *of=NULL; 
+  struct vnode *vn;
+
+  if (fd<0||fd>OPEN_MAX) return -1;
+  of = curproc->fileTable[fd];
+  if (of==NULL) return -1;
+  curproc->fileTable[fd] = NULL;
+
+  if (--of->countRef > 0) return 0; // just decrement ref cnt
+  vn = of->vn;
+  of->vn = NULL;
+  if (vn==NULL) return -1;
+
+  vfs_close(vn);	
+  return 0;
+}
+
+#endif
+
+
+
 
 #if USE_KERNEL_BUFFER
 
@@ -201,32 +212,6 @@ file_write(int fd, userptr_t buf_ptr, size_t size) {
 
 #endif
 
-
-
-/*
- * file system calls for open/close
- */
-int
-sys_close(int fd)
-{
-  struct openfile *of=NULL; 
-  struct vnode *vn;
-
-  if (fd<0||fd>OPEN_MAX) return -1;
-  of = curproc->fileTable[fd];
-  if (of==NULL) return -1;
-  curproc->fileTable[fd] = NULL;
-
-  if (--of->countRef > 0) return 0; // just decrement ref cnt
-  vn = of->vn;
-  of->vn = NULL;
-  if (vn==NULL) return -1;
-
-  vfs_close(vn);	
-  return 0;
-}
-
-#endif
 
 /*
  * simple file system calls for write/read

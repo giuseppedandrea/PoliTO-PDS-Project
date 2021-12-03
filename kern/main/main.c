@@ -109,7 +109,7 @@ static void boot(void)
 	thread_bootstrap();
 	hardclock_bootstrap();
 	#if OPT_SHELL
-		fileTable_bootstrap();
+		sys_fileTable_bootstrap();
 	#endif
 	vfs_bootstrap();
 
@@ -207,6 +207,7 @@ int sys_reboot(int code)
 void kmain(char *arguments)
 {
 	boot();
+	
 
 	menu(arguments);
 

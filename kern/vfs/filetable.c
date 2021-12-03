@@ -34,15 +34,39 @@ struct _syswideOpenTable{
 struct _file
 {
     struct vnode *vn;
-    off_t offset; // probabilmente l'offset appartiene alle informazioni che un processo possiede per file, quindi informazione verrà spostata
+    off_t offset; 
     unsigned int countRef;
     struct lock vn_lk;
 };  
 
-void fileTable_bootstrap(void)
+void sys_fileTable_bootstrap(void)
 {
 
     system_openTable.dim_table=50; // valore iniziale tabella di file, 
                                    // eventualmente da aggiornare
     system_openTable.table=(fcb *) kmalloc(system_openTable.dim_table*sizeof(fcb));
 }
+
+int sys_fileTable_add(struct vnode *v)
+{
+    int i, ind=-1;
+
+    for (i=0; i<system_openTable.dim_table; i++) {
+    if (system_openTable.table[i].vn==NULL) {
+        ind=i;
+        system_openTable.table[i].vn = v;
+        system_openTable.table[i].offset = 0; // TODO: handle offset with append
+        system_openTable.table[i].countRef = 1;
+        break;
+        }
+    }
+
+    if(ind==-1)
+        if(system_openTable.dim_table<MAX_OPEN_TABLE)
+        {
+            // rialloco
+        }
+    
+    return ind;
+}
+
