@@ -578,6 +578,9 @@ static const char *testmenu[] = {
 	"[fs4] FS write stress 2             ",
 	"[fs5] FS long stress                ",
 	"[fs6] FS create stress              ",
+#if OPT_SHELL
+	"[lt] List test                      ",
+#endif
 	NULL
 };
 
@@ -707,6 +710,11 @@ static struct {
 	{ "fs4",	writestress2 },
 	{ "fs5",	longstress },
 	{ "fs6",	createstress },
+
+#if OPT_SHELL
+	/* list tests */
+	{ "lt",		listtest },
+#endif
 
 	{ NULL, NULL }
 };

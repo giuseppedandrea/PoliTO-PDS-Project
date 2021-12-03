@@ -457,4 +457,5 @@ defoption synch
 
 defoption   shell    
 optfile     shell    vfs/filetable.c    
-
+optfile     shell    lib/list.c
+optfile     shell    test/listtest.c
