@@ -82,8 +82,8 @@ struct proc {
   struct semaphore *p_sem;
   struct openfile *fileTable[OPEN_MAX];
 
-  // father pid
-  pid_t fath_pid;
+  // Parent pid
+  pid_t p_parent_pid;
   // childern process, managed as a vector of pid
   children ch_pid;
   
@@ -127,10 +127,9 @@ struct proc *proc_search_pid(pid_t pid);
 void proc_signal_end(struct proc *proc);
 void proc_signal_wait(struct proc *proc);
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest);
-int procChild_add(struct proc *fath, struct proc *ch);
+int procChild_add(struct proc *pparent, struct proc *pchild);
 int procChild_remove(struct proc *proc);
-
-
 #endif
+
 
 #endif /* _PROC_H_ */

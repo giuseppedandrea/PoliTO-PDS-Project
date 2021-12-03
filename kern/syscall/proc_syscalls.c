@@ -33,11 +33,10 @@ void sys__exit(int status)
   thread_exit();
 
   panic("thread_exit returned (should not happen)\n");
-  (void) status; // TODO: status handling
+  (void) status;
 }
 
 #if OPT_SHELL
-
 int sys_waitpid(pid_t pid, userptr_t statusp, int options)
 {
   struct proc *p = proc_search_pid(pid);
@@ -49,8 +48,8 @@ int sys_waitpid(pid_t pid, userptr_t statusp, int options)
     *(int*)statusp = s;
   return pid;
 }
-
 #endif
+
 pid_t sys_getpid(void)
 {
       struct proc *p;
@@ -79,8 +78,8 @@ static void call_enter_forked_process(void *tfv, unsigned long dummy) {
 
 int sys_fork(struct trapframe *ctf, pid_t *retval) {
   struct trapframe *tf_child;
-  struct proc *newp;// *fathp;
- int result;
+  struct proc *newp;
+  int result;
 
 
   KASSERT(curproc != NULL);
@@ -99,7 +98,7 @@ int sys_fork(struct trapframe *ctf, pid_t *retval) {
     return ENOMEM; 
   }
 
-  proc_file_table_copy(curproc,newp);
+  proc_file_table_copy(curproc, newp);
 
   /* we need a copy of the parent's trapframe */
   tf_child = kmalloc(sizeof(struct trapframe));
@@ -109,13 +108,11 @@ int sys_fork(struct trapframe *ctf, pid_t *retval) {
   }
   memcpy(tf_child, ctf, sizeof(struct trapframe));
 
+  /* link child process to its parent, so that child terminates on parent exit */
   result=procChild_add(curproc, newp);
-
   if(result){
     proc_destroy(newp);
     kfree(tf_child);
-    // add remove child struct
-   
     return ENOMEM;
   }
 

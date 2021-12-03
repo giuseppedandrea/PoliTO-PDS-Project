@@ -55,7 +55,6 @@
 
 #define MAX_PROC 100
 
-
 /*
  * The process for the kernel; this holds all the kernel-only threads.
  */
@@ -64,8 +63,6 @@ struct proc *kproc;
 // in limits.h il numero massimo di PID e' __PID_MAX
 
 #if OPT_SHELL
-
-
 static int proc_hundreds=1;
 
 static struct _processTable {
@@ -95,7 +92,6 @@ struct proc *proc_search_pid(pid_t pid) {
       KASSERT(p->p_pid==pid); // fix this
       return p;
 }
-
 
 // returns pid added or error code
 static int processTable_add(struct proc *proc, const char *name) {
@@ -165,7 +161,6 @@ static int processTable_add(struct proc *proc, const char *name) {
       return proc->p_pid;
 }
 
-
 static void processTable_remove(struct proc *proc) {
 
       /* remove the process from the table */
@@ -185,8 +180,6 @@ static void processTable_remove(struct proc *proc) {
       sem_destroy(proc->p_sem);
 }
 
-
-
 static int procChildren_create(struct proc *p)
 {
       int dim=(int) __PID_CHILDREN_MAX/4+1; // first number children 25 
@@ -199,14 +192,11 @@ static int procChildren_create(struct proc *p)
       p->ch_pid->n_ch=dim;
       p->ch_pid->last_ch=0;
       
-      // father pid set as same pid
-      p->fath_pid=p->p_pid; 
-
-
+      // Parent pid set as same pid
+      p->p_parent_pid = p->p_pid;
 
       return 0;
 }
-
 #endif
 
 /*
@@ -500,7 +490,6 @@ struct addrspace *proc_setas(struct addrspace *newas)
       return oldas;
 }
 
-
 #if OPT_SHELL
 int proc_wait(struct proc *proc)
 {
@@ -522,8 +511,6 @@ int proc_wait(struct proc *proc)
       proc_destroy(proc);
       return return_status;
 }
-
-
 #endif
 
 #if OPT_FILE
@@ -543,50 +530,47 @@ void proc_file_table_copy(struct proc *psrc, struct proc *pdest) {
 #endif
 
 #if OPT_SHELL
-
-int procChild_add(struct proc *fath, struct proc *ch)
+int procChild_add(struct proc *pparent, struct proc *pchild)
 {
-      pid_t fath_pid, ch_pid;
+      pid_t parent_pid, ch_pid;
       int i, found=0;
       
 
-      if(fath==NULL || ch==NULL) // process passed are not allocated
+      if((pparent==NULL) || (pchild==NULL)) // process passed are not allocated
         return 1;
 
-      KASSERT(fath!=kproc); // father process can't be kproc
+      KASSERT(pparent!=kproc); // parent process can't be kproc
       
-      fath_pid=fath->p_pid;
-      ch_pid=ch->p_pid;
+      parent_pid=pparent->p_pid;
+      ch_pid=pchild->p_pid;
       
-      ch->fath_pid=fath_pid;
+      pchild->p_parent_pid=parent_pid;
 
-      i = fath->ch_pid->last_ch+1;
+      i = pparent->ch_pid->last_ch+1;
 
-      if(i>fath->ch_pid->n_ch)
+      if(i>pparent->ch_pid->n_ch)
         i=1;
 
-      while(i != fath->ch_pid->last_ch)
+      while(i != pparent->ch_pid->last_ch)
         {
-          if(fath->ch_pid->p_ch[i]==0){
-            fath->ch_pid->p_ch[i]=ch_pid;
-            fath->ch_pid->last_ch=i;
+          if(pparent->ch_pid->p_ch[i]==0){
+            pparent->ch_pid->p_ch[i]=ch_pid;
+            pparent->ch_pid->last_ch=i;
             found=1;
             break;
           }
 
           i++;
           
-          if(i > fath->ch_pid->n_ch)
+          if(i > pparent->ch_pid->n_ch)
             i=1;
-
         }
 
       if(!found)
       {
-          if(fath->ch_pid->n_ch<__PID_CHILDREN_MAX)
+          if(pparent->ch_pid->n_ch<__PID_CHILDREN_MAX)
           {
             // must implement realloc of struct pid_t *p_ch
-
           }
         else
           {
@@ -594,7 +578,6 @@ int procChild_add(struct proc *fath, struct proc *ch)
             // DA RIVEDERE
             panic("too many children processes.\n");
             return 1;
-
           }
       }
       return 0;
@@ -602,14 +585,13 @@ int procChild_add(struct proc *fath, struct proc *ch)
 
 int procChild_remove(struct proc *proc)
 {
-
       KASSERT(proc!=NULL); //da rivedere
 
-      // remove process from the father list
-      if(proc->fath_pid!=proc->p_pid)
+      // remove process from the parent list
+      if(proc->p_parent_pid!=proc->p_pid)
       {
         // Gestire tutti errori
-        _PROCTABLE_proc(proc->fath_pid)->ch_pid->p_ch[proc->p_pid]=0;
+        _PROCTABLE_proc(proc->p_parent_pid)->ch_pid->p_ch[proc->p_pid]=0;
       }
       // gestire deallocazione proc->children
 
@@ -621,12 +603,8 @@ void proc_signal_wait(struct proc *proc)
       P(proc->p_sem);
 }
 
-
 void proc_signal_end(struct proc *proc)
 {
       V(proc->p_sem);
 }
-
-
-
 #endif
