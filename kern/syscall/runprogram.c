@@ -109,6 +109,8 @@ runprogram(char *progname)
 	vaddr_t *argvptr;
 	size_t len, argvptr_size;
 
+	KASSERT(argc >= 1);
+
 	/* Allocate in the kernel address space a temporary array to store 
 	   argv poiters */
 	argvptr_size = (argc + 1) * sizeof(vaddr_t);
@@ -135,6 +137,8 @@ runprogram(char *progname)
 	if (stackptr % 8) {
 		stackptr -= stackptr % 8;
 	}
+
+	KASSERT((stackptr % 8) == 0);
 
 	/* Load the argv pointers onto the stack of the user address space */
 	result = copyout(argvptr, (userptr_t)stackptr, argvptr_size);
