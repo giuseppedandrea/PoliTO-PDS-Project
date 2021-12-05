@@ -38,26 +38,6 @@ int CA_size(cirarray ca);
 
 int CA_isEmpty(cirarray ca);
 
-
-
-
-
-
-
-
-/* cirarray CA_create(int maxD, int nf);
-
-//int CA_destroy(cirarray ca);
-
-//int CA_add(cirarray ca, item item);
-
-int CA_isEmpty(cirarray ca);
-
- */
-
-
-
-
 #endif
 
 #endif /* _CIRCULARARRAY_H_ */
