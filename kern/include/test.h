@@ -46,6 +46,7 @@ int arraytest2(int, char **);
 int bitmaptest(int, char **);
 int threadlisttest(int, char **);
 int listtest(int, char **);
+int carraytest(int, char **);
 
 /* thread tests */
 int threadtest(int, char **);

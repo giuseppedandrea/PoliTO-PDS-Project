@@ -458,3 +458,6 @@ defoption synch
 defoption shell
 optfile shell lib/list.c
 optfile shell test/listtest.c
+optfile shell lib/circulararray.c
+optfile shell test/circulararraytest.c
+
