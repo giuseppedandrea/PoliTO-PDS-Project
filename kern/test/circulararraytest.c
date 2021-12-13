@@ -4,6 +4,8 @@
 //#include "item.h"
 #include <test.h>
 
+#define MAX_STRING 10
+
 static int count=0;
 
 typedef struct item_t *item;
@@ -13,8 +15,6 @@ struct item_t
     int data;
     char *name;
 };
-
-
 
 CAitem* allocateCAitems(int maxD);
 CAitem _newCAitem(void);
@@ -35,7 +35,10 @@ CAitem* allocateCAitems(int maxD)
 CAitem _newCAitem(void)
 {
     item new=kmalloc(sizeof(*new));
+    bzero(new, sizeof(*new));
     new->data=++count;
+    new->name=kmalloc(MAX_STRING*sizeof(char));
+    bzero(new->name, MAX_STRING*sizeof(char));
 
     return new;
 }
@@ -57,33 +60,26 @@ void _freeCAitem(CAitem a)
         return;
 
     b=(item) a;
+    kfree(b->name);
     kfree(b);
-
     return;
 }
 
 CAitem _copyCAitem(CAitem source)
 {
-    item new=kmalloc(sizeof(*new));
     item source_it=(item) source;
+    item new=kmalloc(sizeof(*new));
 
     new->data=source_it->data;
+    new->name=kmalloc(MAX_STRING*sizeof(char));
+    new->name=strcpy(new->name, source_it->name);
 
     return new;
 }
 
 
-static void carraytest_a(void) {
+static void carraytest_a(CAoperations ops) {
     cirarray ca;
-
-    CAoperations ops;
-
-    ops.allocItems=allocateCAitems;
-    ops.newItem=_newCAitem;
-    ops.cmpItem=_cmpCAitem;
-    ops.freeItem=_freeCAitem;
-    ops.copyItem=_copyCAitem;
-
 
     ca=CA_create(100, ops);
     KASSERT(CA_isEmpty(ca));
@@ -92,45 +88,41 @@ static void carraytest_a(void) {
     KASSERT(ca!=NULL);
 }
 
-static void carraytest_b(void) {
+static void carraytest_b(CAoperations ops) {
     int i, result, n;
     cirarray ca;
-    CAoperations ops;
-
-    ops.allocItems=allocateCAitems;
-    ops.newItem=_newCAitem;
-    ops.cmpItem=_cmpCAitem;
-    ops.freeItem=_freeCAitem;
-    ops.copyItem=_copyCAitem;
-
 
     ca=CA_create(100, ops);
     KASSERT(CA_isEmpty(ca));
 
-    n=25;
+    n=30;
     for(i=0; i<n; i++)
         result=CA_add(ca, ops.newItem());	
     
     KASSERT(result == 0);
     KASSERT(CA_size(ca) == n);    
 
-
     CA_destroy(ca);
-    KASSERT(ca!=NULL);
-
 }
 
 
 int carraytest(int nargs, char **args) {
     //cirarray ca;
+    CAoperations ops;
 
     (void)nargs;
     (void)args;
 
+    ops.allocItems=allocateCAitems;
+    ops.newItem=_newCAitem;
+    ops.cmpItem=_cmpCAitem;
+    ops.freeItem=_freeCAitem;
+    ops.copyItem=_copyCAitem;
+
     kprintf("Testing circular array...\n");
 
-    carraytest_a();
-    carraytest_b();
+    carraytest_a(ops);
+    carraytest_b(ops);
 
 
     kprintf("Done.\n");
