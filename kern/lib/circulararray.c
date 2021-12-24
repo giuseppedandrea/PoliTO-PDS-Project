@@ -32,13 +32,13 @@ cirarray CA_create(int maxD, CAoperations ops)
         return NULL;
 
     ca=kmalloc(sizeof(*ca));
-    ca->maxdim=maxD;
+    ca->maxdim=maxD+1;
     ca->curdim=heuristicDimension(maxD)+1; // dummy, if the dimention is less than 25 can be a problem. Return on ending to correct this
     ca->lastpos=0; // position on 0 is always empty 
     ca->nelements=0;
     ca->ops=ops;
-    ca->item=kmalloc(ca->curdim*sizeof(*(ca->item)));
-    bzero(ca->item, ca->curdim*sizeof(*(ca->item)));
+    ca->item=kmalloc(ca->curdim*sizeof(CAitem));
+    bzero(ca->item, ca->curdim*sizeof(CAitem));
 
     return ca;
 }
@@ -63,10 +63,11 @@ int CA_destroy(cirarray ca)
 static void CA_realloc(cirarray ca) 
 {
     CAitem *buff;
-    int i, pastdim=ca->curdim;
+    int i, pastdim=ca->curdim, propdim=2*(ca->curdim)+1;
 
-    ca->curdim=2*(ca->curdim) >= ca->maxdim ? ca->maxdim : 2*(ca->curdim);
-    buff=kmalloc(ca->curdim*sizeof(*buff));
+    ca->curdim=propdim >= ca->maxdim ? ca->maxdim : propdim;
+    buff=kmalloc(ca->curdim*sizeof(CAitem));
+    bzero(buff, ca->curdim*sizeof(CAitem));
 
     for(i=1; i<pastdim; i++) {
         buff[i]=ca->ops.copyItem(ca->item[i]);
@@ -80,14 +81,14 @@ static void CA_realloc(cirarray ca)
 
 int CA_add(cirarray ca, CAitem it)
 {
-    int i=0, found=0;
+    int i=0, found=0, pos=0;
 
     if(ca==NULL || it==NULL)
-        return 1;
+        return 0;
     
     i=ca->lastpos+1;
 
-    if(i>ca->curdim)
+    if(i>=ca->curdim)
         i=1;
     
     while (i != ca->lastpos) {
@@ -96,6 +97,7 @@ int CA_add(cirarray ca, CAitem it)
             ca->lastpos=i;
             ca->nelements++;
             found=1;
+            pos=i;
             break;
         } 
         i++;
@@ -107,13 +109,116 @@ int CA_add(cirarray ca, CAitem it)
         if(ca->curdim < ca->maxdim) {
             CA_realloc(ca); // it's necerrary to allocate more space
             ca->item[ca->lastpos]=it;
+            pos=ca->lastpos;
             ca->nelements++;
         } else
-            return 1; // no more space. Return error
+            return 0; // no more space. Return error
     }
+
+    return pos;
+}
+
+
+CAitem CA_get_byIndex(cirarray ca, int pos)
+{
+    if(ca==NULL || pos<=0)
+        return NULL;
+    
+    if(ca->item[pos]==NULL)
+        return NULL;
+
+    return ca->item[pos];
+}
+
+int CA_remove_byIndex(cirarray ca, int pos)
+{
+    if(ca==NULL || pos<=0)
+        return 1;
+    
+    if(ca->item[pos]==NULL)
+        return 1;
+
+    ca->ops.freeItem(ca->item[pos]);
+    ca->item[pos]=NULL;
+    ca->nelements--;
+    return 0;
+}
+
+int* CA_get(cirarray ca, CAkey key)
+{
+    int *v, *buff;
+    int i, j=1, k=0;
+
+    if(ca==NULL || key==NULL)
+        return NULL;
+
+    v=kmalloc(ca->curdim*sizeof(int));
+    bzero(v, ca->curdim*sizeof(int));
+
+    for(i=1; i<ca->curdim; i++)
+        if(ca->item[i]!=NULL)
+            if(ca->ops.cmpItem(ca->ops.getItemKey(ca->item[i]), key)==0)
+                v[k++]=i;
+    
+    buff=kmalloc((k+1)*sizeof(int));
+    buff[0]=k;
+    for(i=0; i<k; i++)
+        buff[j++]=v[i];
+
+    kfree(v);
+
+    return buff;
+}
+
+int CA_remove(cirarray ca, CAkey key)
+{
+    int *v, *buff;
+    int i, k=0;
+
+    if(ca==NULL || key==NULL)
+        return 1;
+
+    v=kmalloc(ca->curdim*sizeof(int));
+    bzero(v, ca->curdim*sizeof(int));
+
+    for(i=1; i<ca->curdim; i++)
+        if(ca->item[i]!=NULL)
+            if(ca->ops.cmpItem(ca->ops.getItemKey(ca->item[i]), key)==0)
+                v[k++]=i;
+    
+    if(k<=0) {
+        kfree(v);
+        return 1; // no occurance, return error
+    }
+
+    buff=kmalloc(k*sizeof(int));
+    for(i=0; i<k; i++)
+        buff[i]=v[i];
+
+    kfree(v);
+
+    for(i=0; i<k; i++) 
+        if(CA_remove_byIndex(ca, buff[i]))
+            return 1;
 
     return 0;
 }
+
+int CA_stamp(cirarray ca)
+{
+    int i;
+
+    if(ca==NULL)
+        return 1;
+
+    for(i=1; i<ca->curdim; i++)
+        if(ca->item[i]!=NULL)
+            ca->ops.coutItem(ca->item[i]);
+
+    return 0;
+}
+
+
 
 int CA_size(cirarray ca)
 {
@@ -123,6 +228,5 @@ int CA_size(cirarray ca)
 
 int CA_isEmpty(cirarray ca)
 {
-    return ca->maxdim>0;
+    return ca->nelements==0;
 }
-
