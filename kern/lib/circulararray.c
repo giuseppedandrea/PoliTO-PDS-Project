@@ -2,7 +2,6 @@
 #include <lib.h>
 #include "circulararray.h"
 
-
 struct cirarray_s{
     CAitem *item;
     int nelements;
@@ -24,6 +23,26 @@ static unsigned int heuristicDimension(unsigned int maxD)
     return (maxD)*count/(16*sizeof(int)) > 300 ? 300: (maxD)*count/(16*sizeof(int));
 }
 
+static void CA_realloc(cirarray ca) 
+{
+    CAitem *buff;
+    int i, pastdim=ca->curdim, propdim=2*(ca->curdim)+1; 
+
+    /* Dimension proposed is 2 times the last */
+    ca->curdim=propdim >= ca->maxdim ? ca->maxdim : propdim; 
+    buff=kmalloc(ca->curdim*sizeof(CAitem));
+    bzero(buff, ca->curdim*sizeof(CAitem));
+
+    for(i=1; i<pastdim; i++) {
+        buff[i]=ca->ops.copyItem(ca->item[i]);
+        ca->ops.freeItem(ca->item[i]);
+    }
+    
+    kfree(ca->item);
+    ca->item=buff;
+    ca->lastpos=pastdim;
+}
+
 cirarray CA_create(int maxD, CAoperations ops)
 {
     cirarray ca;
@@ -33,7 +52,7 @@ cirarray CA_create(int maxD, CAoperations ops)
 
     ca=kmalloc(sizeof(*ca));
     ca->maxdim=maxD+1;
-    ca->curdim=heuristicDimension(maxD)+1; // dummy, if the dimention is less than 25 can be a problem. Return on ending to correct this
+    ca->curdim=heuristicDimension(maxD)+1; 
     ca->lastpos=0; // position on 0 is always empty 
     ca->nelements=0;
     ca->ops=ops;
@@ -58,25 +77,6 @@ int CA_destroy(cirarray ca)
     kfree(ca);
     
     return 0;
-}
-
-static void CA_realloc(cirarray ca) 
-{
-    CAitem *buff;
-    int i, pastdim=ca->curdim, propdim=2*(ca->curdim)+1;
-
-    ca->curdim=propdim >= ca->maxdim ? ca->maxdim : propdim;
-    buff=kmalloc(ca->curdim*sizeof(CAitem));
-    bzero(buff, ca->curdim*sizeof(CAitem));
-
-    for(i=1; i<pastdim; i++) {
-        buff[i]=ca->ops.copyItem(ca->item[i]);
-        ca->ops.freeItem(ca->item[i]);
-    }
-    
-    kfree(ca->item);
-    ca->item=buff;
-    ca->lastpos=pastdim;
 }
 
 int CA_add(cirarray ca, CAitem it)
