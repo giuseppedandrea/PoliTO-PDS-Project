@@ -455,7 +455,9 @@ defoption waitpid
 
 defoption synch
 
-defoption   shell    
+defoption shell
+optfile shell lib/list.c
+optfile shell test/listtest.c
+optfile shell lib/circulararray.c
+optfile shell test/circulararraytest.c
 optfile     shell    vfs/filetable.c    
-optfile     shell    lib/list.c
-optfile     shell    test/listtest.c
