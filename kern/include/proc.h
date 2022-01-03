@@ -38,6 +38,7 @@
 
 #include <spinlock.h>
 #include <limits.h>
+#include <list.h>
 #include "opt-shell.h"
 
 struct addrspace;
@@ -62,8 +63,6 @@ struct vnode;
  * without sleeping.
  */
 
-typedef struct _children *children;
-
 struct proc {
 	char *p_name;			/* Name of this process */
 	struct spinlock p_lock;		/* Lock for this structure */
@@ -84,13 +83,10 @@ struct proc {
 
   // Parent pid
   pid_t p_parent_pid;
-  // childern process, managed as a vector of pid
-  children ch_pid;
-  
-  
+  // List of children for this process
+  list p_children;
 #endif
 };
-
 
 
 /* This is the process structure for the kernel and for kernel-only threads. */
@@ -125,9 +121,13 @@ int proc_wait(struct proc *proc);
 struct proc *proc_search_pid(pid_t pid);
 /* signal end/exit of process */
 void proc_signal_end(struct proc *proc);
+/* wait end/exit of process */
 void proc_signal_wait(struct proc *proc);
+/* copy file table from a process to another process */
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest);
+/* link child process to its parent process */
 int procChild_add(struct proc *pparent, struct proc *pchild);
+/* unlink child process to its parent process */
 int procChild_remove(struct proc *proc);
 #endif
 

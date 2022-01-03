@@ -43,6 +43,7 @@
  */
 
 #include <types.h>
+#include <kern/errno.h>
 #include <spl.h>
 #include <proc.h>
 #include <current.h>
@@ -74,13 +75,6 @@ static struct _processTable {
 } processTable;
 
 #define _PROCTABLE_proc(pid) (processTable.proc[pid])
-
-struct _children{
-  pid_t *p_ch;
-  int n_ch;
-  int last_ch; 
-}; 
-
 
 struct proc *proc_search_pid(pid_t pid) {
       struct proc *p;
@@ -182,16 +176,14 @@ static void processTable_remove(struct proc *proc) {
 
 static int procChildren_create(struct proc *p)
 {
-      int dim=(int) __PID_CHILDREN_MAX/4+1; // first number children 25 
+      KASSERT(p != NULL);
 
-      if(p==NULL)
-        return 1; // error on passing process
+      // Init list of children for process p
+      p->p_children = list_create();
+      if (p->p_children == NULL) {
+        return 1;   // TODO: Error handling
+      }
 
-      p->ch_pid=(struct _children *) kmalloc(sizeof(*(p->ch_pid)));
-      p->ch_pid->p_ch=(pid_t *) kmalloc(dim*sizeof(pid_t));
-      p->ch_pid->n_ch=dim;
-      p->ch_pid->last_ch=0;
-      
       // Parent pid set as same pid
       p->p_parent_pid = p->p_pid;
 
@@ -514,9 +506,7 @@ int proc_wait(struct proc *proc)
       proc_destroy(proc);
       return return_status;
 }
-#endif
 
-#if OPT_FILE
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest) {
       int fd;
 
@@ -530,75 +520,49 @@ void proc_file_table_copy(struct proc *psrc, struct proc *pdest) {
         }
       }
 }
-#endif
 
-#if OPT_SHELL
 int procChild_add(struct proc *pparent, struct proc *pchild)
 {
-      pid_t parent_pid, ch_pid;
-      int i, found=0;
-      
+      KASSERT(pparent != NULL);
+      KASSERT(pchild != NULL);
 
-      if((pparent==NULL) || (pchild==NULL)) // process passed are not allocated
-        return 1;
+      KASSERT(pparent != kproc); // parent process can't be kproc // NOTE: Why? Maybe pchild cannot be kproc
 
-      KASSERT(pparent!=kproc); // parent process can't be kproc
-      
-      parent_pid=pparent->p_pid;
-      ch_pid=pchild->p_pid;
-      
-      pchild->p_parent_pid=parent_pid;
+      pchild->p_parent_pid = pparent->p_pid;
 
-      i = pparent->ch_pid->last_ch+1;
-
-      if(i>pparent->ch_pid->n_ch)
-        i=1;
-
-      while(i != pparent->ch_pid->last_ch)
-        {
-          if(pparent->ch_pid->p_ch[i]==0){
-            pparent->ch_pid->p_ch[i]=ch_pid;
-            pparent->ch_pid->last_ch=i;
-            found=1;
-            break;
-          }
-
-          i++;
-          
-          if(i > pparent->ch_pid->n_ch)
-            i=1;
+      if (list_size(pparent->p_children) < __PID_CHILDREN_MAX) {  // TODO: Remove __PID_CHILDREN_MAX and add a const in this file
+        // Add the child process to the list of children of the parent process
+        if (!list_insertTail(pparent->p_children, pchild)) {
+          // TODO: Error handling
+          return 1;
         }
-
-      if(!found)
-      {
-          if(pparent->ch_pid->n_ch<__PID_CHILDREN_MAX)
-          {
-            // must implement realloc of struct pid_t *p_ch
-          }
-        else
-          {
-            // too much children process, error.
-            // DA RIVEDERE
-            panic("too many children processes.\n");
-            return 1;
-          }
+      } else {
+        // Parent process has too much children processes
+        return EMPROC;
       }
+
       return 0;
 }
 
 int procChild_remove(struct proc *proc)
 {
-      KASSERT(proc!=NULL); //da rivedere
+      struct proc *pparent;
 
-      // remove process from the parent list
-      if(proc->p_parent_pid!=proc->p_pid)
-      {
-        // Gestire tutti errori
-        _PROCTABLE_proc(proc->p_parent_pid)->ch_pid->p_ch[proc->p_pid]=0;
+      KASSERT(proc != NULL);
+
+      pparent = _PROCTABLE_proc(proc->p_parent_pid);
+
+      if(proc->p_parent_pid != proc->p_pid) {
+        // Remove the child process from the list of children of the parent process
+        if (!list_deleteByKey(pparent->p_children, &(proc->p_pid), sizeof(proc->p_pid), (unsigned char *)(&(proc->p_pid)) - (unsigned char *)proc)) {
+          // TODO: Error handling
+          return 1;
+        }
       }
-      // gestire deallocazione proc->children
 
-    return 0; //gestire errori
+      // TODO: gestire deallocazione proc->children
+
+      return 0;
 }
 
 void proc_signal_wait(struct proc *proc)
