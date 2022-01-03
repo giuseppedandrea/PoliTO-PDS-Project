@@ -71,12 +71,13 @@ static struct _processTable {
   struct proc **proc;   /* [0] not used. pids are >= 1 */
   int dimTable;
   int last_i;           /* index of last allocated pid */
-  struct spinlock lk;	/* Lock for this table */
+  struct spinlock lk;   /* Lock for this table */
 } processTable;
 
 #define _PROCTABLE_proc(pid) (processTable.proc[pid])
 
-struct proc *proc_search_pid(pid_t pid) {
+struct proc *proc_search_pid(pid_t pid)
+{
       struct proc *p;
 
       KASSERT(pid>=0 && pid<__PID_MAX); // fix this
@@ -88,7 +89,8 @@ struct proc *proc_search_pid(pid_t pid) {
 }
 
 // returns pid added or error code
-static int processTable_add(struct proc *proc, const char *name) {
+static int processTable_add(struct proc *proc, const char *name)
+{
       /* search a free index in table using a circular strategy */
       int i, found=0;
       struct proc **buff;
@@ -155,10 +157,13 @@ static int processTable_add(struct proc *proc, const char *name) {
       return proc->p_pid;
 }
 
-static void processTable_remove(struct proc *proc) {
-
+static void processTable_remove(struct proc *proc)
+{
       /* remove the process from the table */
       int i;
+
+      KASSERT(proc != NULL);
+
       spinlock_acquire(&processTable.lk);
       i = proc->p_pid;
       KASSERT(i>0 && i<=MAX_PROC); // gestione seria errori
@@ -507,8 +512,12 @@ int proc_wait(struct proc *proc)
       return return_status;
 }
 
-void proc_file_table_copy(struct proc *psrc, struct proc *pdest) {
+void proc_file_table_copy(struct proc *psrc, struct proc *pdest)
+{
       int fd;
+
+      KASSERT(psrc != NULL);
+      KASSERT(pdest != NULL);
 
       for (fd=0; fd<OPEN_MAX; fd++) {
         struct openfile *of = psrc->fileTable[fd];
@@ -567,11 +576,15 @@ int procChild_remove(struct proc *proc)
 
 void proc_signal_wait(struct proc *proc)
 {
+      KASSERT(proc != NULL);
+
       P(proc->p_sem);
 }
 
 void proc_signal_end(struct proc *proc)
 {
+      KASSERT(proc != NULL);
+
       V(proc->p_sem);
 }
 #endif

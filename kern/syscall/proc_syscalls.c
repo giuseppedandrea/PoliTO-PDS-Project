@@ -26,6 +26,8 @@ void sys__exit(int status)
   proc_remthread(curthread);
   proc_signal_end(p);
 #else
+  (void) status;
+
   /* get address space of current process and destroy */
   struct addrspace *as = proc_getas();
   as_destroy(as);
@@ -33,19 +35,31 @@ void sys__exit(int status)
   thread_exit();
 
   panic("thread_exit returned (should not happen)\n");
-  (void) status;
 }
 
 #if OPT_SHELL
-int sys_waitpid(pid_t pid, userptr_t statusp, int options)
+pid_t sys_waitpid(pid_t pid, userptr_t statusp, int options, int *errp)
 {
-  struct proc *p = proc_search_pid(pid);
+  struct proc *p;
   int s;
+
   (void)options; /* not handled */
-  if (p==NULL) return -1;
+
+  p = proc_search_pid(pid);
+  if (p == NULL) {
+    // TODO: Error handling
+    (void)errp;
+    return -1;
+  }
+
   s = proc_wait(p);
-  if (statusp!=NULL) 
+  if (statusp != NULL) {
     *(int*)statusp = s;
+  } else {
+    *errp = EFAULT;
+    return -1;
+  }
+
   return pid;
 }
 #endif
@@ -53,49 +67,51 @@ int sys_waitpid(pid_t pid, userptr_t statusp, int options)
 pid_t sys_getpid(void)
 {
 #if OPT_SHELL
-      struct proc *p;
-      
-      KASSERT(curproc != NULL);
-      
-      spinlock_acquire(&(curproc->p_lock));
-      p=curproc;
-      spinlock_release(&(curproc->p_lock));
-      
-      return p->p_pid;
+  struct proc *p;
+
+  KASSERT(curproc != NULL);
+
+  spinlock_acquire(&(curproc->p_lock));
+  p=curproc;
+  spinlock_release(&(curproc->p_lock));
+
+  return p->p_pid;
 #else
-      return -1;
+  return -1;
 #endif
 }
 
 #if OPT_SHELL
 static void call_enter_forked_process(void *tfv, unsigned long dummy) {
   struct trapframe *tf = (struct trapframe *)tfv;
+
   (void)dummy;
-  enter_forked_process(tf); 
- 
+
+  enter_forked_process(tf);
+
   panic("enter_forked_process returned (should not happen)\n");
 }
 
-int sys_fork(struct trapframe *ctf, pid_t *retval) {
+pid_t sys_fork(struct trapframe *ctf, int *errp) {
   struct trapframe *tf_child;
   struct proc *newp;
   int result;
 
-
   KASSERT(curproc != NULL);
-  //curproc=curproc;
 
   newp = proc_create_runprogram(curproc->p_name); // create process and set *p_cwd
   if (newp == NULL) {
-    return ENOMEM;
+    *errp = ENOMEM;
+    return -1;
   }
 
   /* done here as we need to duplicate the address space 
      of the current process */
   as_copy(curproc->p_addrspace, &(newp->p_addrspace));
   if(newp->p_addrspace == NULL){
-    proc_destroy(newp); 
-    return ENOMEM; 
+    proc_destroy(newp);
+    *errp = ENOMEM;
+    return -1;
   }
 
   proc_file_table_copy(curproc, newp);
@@ -104,33 +120,32 @@ int sys_fork(struct trapframe *ctf, pid_t *retval) {
   tf_child = kmalloc(sizeof(struct trapframe));
   if(tf_child == NULL){
     proc_destroy(newp);
-    return ENOMEM; 
+    *errp = ENOMEM;
+    return -1;
   }
   memcpy(tf_child, ctf, sizeof(struct trapframe));
 
   /* link child process to its parent, so that child terminates on parent exit */
-  result=procChild_add(curproc, newp);
+  result = procChild_add(curproc, newp);
   if(result){
     proc_destroy(newp);
     kfree(tf_child);
-    return ENOMEM;
+    *errp = result;
+    return -1;
   }
 
   result = thread_fork(
 		 curthread->t_name, newp,
-		 call_enter_forked_process, 
+		 call_enter_forked_process,
 		 (void *)tf_child, (unsigned long)0/*unused*/);
 
   if (result){
     proc_destroy(newp);
     kfree(tf_child);
-    return ENOMEM;
+    *errp = result;
+    return -1;
   }
 
-  *retval = newp->p_pid;
-
-  return 0;
+  return newp->p_pid;
 }
-
-
 #endif
