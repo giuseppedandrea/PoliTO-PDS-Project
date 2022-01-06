@@ -36,6 +36,7 @@
 #include "opt-fork.h"
 #include "opt-file.h"
 #include "opt-shell.h"
+#include "filetable.h"
 
 struct trapframe; /* from <machine/trapframe.h> */
 
@@ -65,8 +66,7 @@ int sys_reboot(int code);
 int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
 
 #if OPT_SHELL
-struct openfile;
-void openfileIncrRefCount(struct openfile *of);
+//void openfileIncrRefCount(struct openfile *of);
 int sys_open(userptr_t path, int openflags, mode_t mode, int *errp);
 int sys_close(int fd);
 

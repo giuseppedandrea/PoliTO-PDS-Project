@@ -19,54 +19,44 @@
 #include "autoconf.h"  // for pseudoconfig
 #include "filetable.h"
 #include "opt-shell.h"
+#include "circulararray.h"
+#include "item.h"
 
 // OPEN_MAX come limite massimo di file aperti per processo. Sono 128
 
-typedef struct _file fcb;
 
-static struct _syswideOpenTable system_openTable;
 
-struct _syswideOpenTable{
-    fcb *table;
-    int dim_table;
-};
+static cirarray system_openTable; 
 
-struct _file
-{
-    struct vnode *vn;
-    off_t offset; 
-    unsigned int countRef;
-    struct lock vn_lk;
-};  
 
 void sys_fileTable_bootstrap(void)
 {
+    CAoperations ops;
 
-    system_openTable.dim_table=50; // valore iniziale tabella di file, 
-                                   // eventualmente da aggiornare
-    system_openTable.table=(fcb *) kmalloc(system_openTable.dim_table*sizeof(fcb));
+    ops.newItem=newFCB;
+    ops.cmpItem=cmpFCB;
+    ops.freeItem=freeFCB;
+    ops.getItemKey=getFCBKey;
+    ops.copyItem=copyFCB;
+
+    system_openTable=CA_create(OPEN_MAX*100, ops);
 }
 
-int sys_fileTable_add(struct vnode *v)
+int sys_fileTable_add(fcb file)
 {
-    int i, ind=-1;
+    if(file==NULL)
+        return 0;
+        
+    return CA_add(system_openTable, file);
+}
 
-    for (i=0; i<system_openTable.dim_table; i++) {
-    if (system_openTable.table[i].vn==NULL) {
-        ind=i;
-        system_openTable.table[i].vn = v;
-        system_openTable.table[i].offset = 0; // TODO: handle offset with append
-        system_openTable.table[i].countRef = 1;
-        break;
-        }
-    }
+int sys_fileTable_remove(int ind)
+{
+    return CA_remove_byIndex(system_openTable, ind);
+}
 
-    if(ind==-1)
-        if(system_openTable.dim_table<MAX_OPEN_TABLE)
-        {
-            // rialloco
-        }
-    
-    return ind;
+fcb sys_fileTable_get(int ind)
+{
+    return CA_get_byIndex(system_openTable, ind);
 }
 

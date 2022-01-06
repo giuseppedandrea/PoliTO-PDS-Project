@@ -19,13 +19,11 @@ struct _file
 
 // qui aggiungere funzioni che agiscono sulla struct definita dentro filetable.c
 void sys_fileTable_bootstrap(void);
-
 // returns 0 on error or fd
-int sys_fileTable_add(struct vnode *v);
-
+int sys_fileTable_add(fcb file);
 // returns 1 on error. 0 on success
 int sys_fileTable_remove(int ind);
-
+// returns fcb if present or null
 fcb sys_fileTable_get(int ind);
 
 #endif

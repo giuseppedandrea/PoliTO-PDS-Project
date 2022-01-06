@@ -49,7 +49,7 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <syscall.h>
-
+#include "item.h"
 #include <synch.h>
 #include <limits.h>
 
@@ -84,10 +84,6 @@ struct _children {
   int last_ch; 
 }; 
 
-struct _procFileTable {
-    int *fileTable;
-    int dimTable;
-};
 
 struct proc *proc_search_pid(pid_t pid) {
       struct proc *p;
@@ -267,6 +263,10 @@ static struct proc *proc_create(const char *name)
           if(fileTable_create(proc))
             return NULL; // allocation problem
         }
+      
+      if(proc_fileTable_create(proc))
+        return NULL;
+      
 
 #endif
 
@@ -357,6 +357,8 @@ void proc_destroy(struct proc *proc)
 
       processTable_remove(proc);
       procChild_remove(proc);
+
+      proc_fileTable_destroy(proc);
 
       kfree(proc->p_name);
       kfree(proc);
@@ -546,14 +548,16 @@ int proc_wait(struct proc *proc)
 #if OPT_FILE
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest) {
       int fd;
+      fcb file;
 
-      for (fd=0; fd<OPEN_MAX; fd++) {
-        struct openfile *of = psrc->fileTable[fd];
+      for (fd=1; fd<OPEN_MAX; fd++) {
+        file=sys_fileTable_get(proc_fileTable_get(psrc, fd));
 
+        
         pdest->fileTable[fd] = of;
-        if (of != NULL) {
+        if (file != NULL) {
           /* incr reference count */
-          openfileIncrRefCount(of);
+          openfileIncrRefCount(file);
         }
       }
 }
@@ -645,31 +649,52 @@ void proc_signal_end(struct proc *proc)
 }
 
 
-/* File table of single process */
+
+/* Creating file table of single process */
 int proc_fileTable_create(struct proc *proc)
 {
+  CAoperations ops;
 
+  if(proc==NULL)
+    return 1;
+  
+  ops.newItem=newInt;
+  ops.cmpItem=cmpInt;
+  ops.freeItem=freeInt;
+  ops.copyItem=copyInt;
+  ops.getItemKey=getIntKey;
 
+  proc->ft=CA_create(MAX_OPEN_TABLE, ops);
+  if(proc->ft==NULL)
+    return 1;
 
+  return 0;
 }
 
 /* Adding on file table file descriptor of system file table */
-int proc_fileTable_add(struct proc *proc, int fd)
+int proc_fileTable_add(struct proc *proc, int indTable)
 {
-  int i;
-
-  // aggiungere nella fileTable del processo l'indice della tabella file di sistema
-  // PARTIRE DA QUI
-
-
+  return CA_add(proc->ft, &indTable);
 }
 
 /* Remove on file table file descriptor of system file table*/
 int proc_fileTable_remove(struct proc *proc, int fd)
 {
-
-
+  return CA_remove_byIndex(proc->ft, fd);
 }
 
+/* Destroy file table of single process  */
+int proc_fileTable_destroy(struct proc *proc)
+{
+  return CA_destroy(proc->ft);
+}
+
+int proc_fileTable_get(struct proc *proc, int fd)
+{
+  if(proc==NULL || fd<0)
+    return NULL;
+
+  return CA_get_byIndex(proc->ft, fd);
+}
 
 #endif
