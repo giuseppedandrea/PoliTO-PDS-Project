@@ -5,9 +5,6 @@
 #include <syscall.h>
 #include <current.h>
 #include <lib.h>
-
-#if OPT_SHELL
-
 #include <copyinout.h>
 #include <vnode.h>
 #include <vfs.h>
@@ -15,24 +12,27 @@
 #include <uio.h>
 #include <proc.h>
 
+#if OPT_SHELL
+
+
 
 #define USE_KERNEL_BUFFER 0
 
-
-void openfileIncrRefCount(struct openfile *of) {
-  if (of!=NULL)
-    of->countRef++;
-}
+void openfileIncrRefCount(fcb file) {
+  if (file != NULL)
+    file->countRef++;
+}   
 
 /*
  * file system calls for open/close
  */
 int sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
 {
-  int fd, i, ind_table;
+  int fd, i, indTable;
   struct vnode *v;
   struct openfile *of=NULL; 	
   int result;
+  fcb newFile;
 
   result = vfs_open((char *)path, openflags, mode, &v);
   if (result) {
@@ -40,12 +40,20 @@ int sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
     return -1;
   }
 
+  newFile=newFCB();
+  if(newFile==NULL)
+    return -1;
+      
+  newFile->vn=v;
+  newFile->offset=0;
+  newFile->countRef=1;
+
   // funzione ritorna indice del vnode nella tabella di sistema oppure errore
-  ind_table=sys_fileTable_add(v);
-  if(ind_table==-1)
-          *errp = ENFILE;
+  indTable=sys_fileTable_add(newFile);
+  if(indTable==0)
+      *errp = ENFILE;
   else {
-      fd=proc_fileTable_add(p, ind_table);
+      fd=proc_fileTable_add(curproc, indTable);
       if(fd)
       // no free slot in process open file table
         *errp = EMFILE;
@@ -57,21 +65,30 @@ int sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
   return -1;
 }
 
-int
-sys_close(int fd)
+int sys_close(int fd)
 {
-  struct openfile *of=NULL; 
+  fcb file=NULL; 
   struct vnode *vn;
+  struct proc *proc;
 
-  if (fd<0||fd>OPEN_MAX) return -1;
-  of = curproc->fileTable[fd];
-  if (of==NULL) return -1;
-  curproc->fileTable[fd] = NULL;
+  if(fd < 0 || fd > OPEN_MAX) 
+    return -1;
 
-  if (--of->countRef > 0) return 0; // just decrement ref cnt
-  vn = of->vn;
-  of->vn = NULL;
-  if (vn==NULL) return -1;
+  proc=curproc;
+
+  file=sys_fileTable_get(proc_fileTable_get(proc, fd));
+  if(file==NULL) 
+    return -1;
+
+  if(--file->countRef > 0) 
+    return 0; // just decrement ref cnt
+  
+  vn = file->vn;
+  sys_fileTable_remove(proc_fileTable_get(proc, fd));
+  proc_fileTable_remove(curproc, fd);
+
+  if (vn==NULL) 
+    return -1;
 
   vfs_close(vn);	
   return 0;
@@ -81,7 +98,7 @@ sys_close(int fd)
 
 
 
-
+/*
 #if USE_KERNEL_BUFFER
 
 static int
@@ -216,6 +233,7 @@ file_write(int fd, userptr_t buf_ptr, size_t size) {
 /*
  * simple file system calls for write/read
  */
+/*
 int
 sys_write(int fd, userptr_t buf_ptr, size_t size)
 {
@@ -261,3 +279,4 @@ sys_read(int fd, userptr_t buf_ptr, size_t size)
 
   return (int)size;
 }
+*/

@@ -6,9 +6,27 @@
 #include <vnode.h>
 
 #if OPT_SHELL
+
+typedef struct _file* fcb;
+
+struct _file
+{
+    struct vnode *vn;
+    off_t offset; 
+    unsigned int countRef;
+    struct lock vn_lk;
+};  
+
 // qui aggiungere funzioni che agiscono sulla struct definita dentro filetable.c
 void sys_fileTable_bootstrap(void);
+
+// returns 0 on error or fd
 int sys_fileTable_add(struct vnode *v);
+
+// returns 1 on error. 0 on success
+int sys_fileTable_remove(int ind);
+
+fcb sys_fileTable_get(int ind);
 
 #endif
 
