@@ -54,167 +54,250 @@
 #include <synch.h>
 #include <limits.h>
 
-#define MAX_PROC 100
+/* Max number of active processes on the system */
+#define MAX_SYSTEM_PROCS 1024
+
+/* Max number of child processes refers to a single process */
+#define MAX_CHILD_PROCS 100
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
  */
 struct proc *kproc;
 
-// in limits.h il numero massimo di PID e' __PID_MAX
-
 #if OPT_SHELL
-static int proc_hundreds=1;
+struct proc_table {
+  /*
+   * array of current active processes
+   * [0] and [1] are used for kernel process
+   * user processes have a pid >= PID_MIN
+   */
+  struct proc **procs;
+  /* number of current active processes */
+  size_t numprocs;
+  /* next available pid */
+  size_t nextpid;
+  /* lock for this struct */
+  struct spinlock lock;
+};
 
-static struct _processTable {
-  int active;           /* initial value 0 */
-  struct proc **proc;   /* [0] not used. pids are >= 1 */
-  int dimTable;
-  int last_i;           /* index of last allocated pid */
-  struct spinlock lk;   /* Lock for this table */
-} processTable;
+struct proc_table *pt;
 
-#define _PROCTABLE_proc(pid) (processTable.proc[pid])
+#define PROCS_IDX(X) ((X) < MAX_SYSTEM_PROCS ? (X) : PID_MIN + ((X - MAX_SYSTEM_PROCS) % (MAX_SYSTEM_PROCS - PID_MIN)))
 
-struct proc *proc_search_pid(pid_t pid)
+/*
+ * Create the Process Table.
+ * Return proper error code on error:
+ * - ENOMEM: sufficient memory was not available
+ */
+static int proc_table_create()
 {
-      struct proc *p;
+      size_t i;
 
-      KASSERT(pid>=0 && pid<__PID_MAX); // fix this
+      pt = kmalloc(sizeof(*pt));
+      if (pt == NULL) {
+        return ENOMEM;
+      }
 
-      p = _PROCTABLE_proc(pid);
-      
-      KASSERT(p->p_pid==pid); // fix this
-      return p;
+      pt->procs = kmalloc(MAX_SYSTEM_PROCS * sizeof(*(pt->procs)));
+      if (pt->procs == NULL) {
+        return ENOMEM;
+      }
+
+      spinlock_init(&pt->lock);
+      pt->numprocs = 0;
+      pt->nextpid = PID_MIN;
+
+      for (i = 0; i < MAX_SYSTEM_PROCS; i++) {
+        pt->procs[i] = NULL;
+      }
+
+      return 0;
 }
 
-// returns pid added or error code
-static int processTable_add(struct proc *proc, const char *name)
+/*
+ * Add a process to the Process Table.
+ * Return proper error code on error:
+ * - ENPROC: there are already too many processes on the system
+ */
+static int proc_table_add(struct proc *proc)
 {
-      /* search a free index in table using a circular strategy */
-      int i, found=0;
-      struct proc **buff;
-      
+      pid_t pid;
 
-      spinlock_acquire(&processTable.lk);
+      KASSERT(proc != NULL);
+      KASSERT(pt != NULL);
 
-      i = processTable.last_i+1;
-      proc->p_pid = 0;
+      spinlock_acquire(&pt->lock);
 
-      if (i>proc_hundreds*MAX_PROC) //e' un vettore circolare, devi verificare se ci sono posizioni
-                                    // libere deallocate 
-        i=1;
+      /* Check if there are already too many processes on the system */
+      if (pt->numprocs >= (MAX_SYSTEM_PROCS - PID_MIN)) {
+        spinlock_release(&pt->lock);
+        return ENPROC;
+      }
 
-      while (i!=processTable.last_i) {
-        if (processTable.proc[i] == NULL) {
-          processTable.proc[i] = proc;
-          processTable.last_i = i;
-          proc->p_pid = i;
-          found=1;
-          break;
+      /* Check if a wrap around is needed for next possible pid */
+      if (pt->nextpid > PID_MAX) {
+        pt->nextpid = PID_MIN;
+      }
+
+      /* Looking for a free slot in array of current active processes */
+      pid = pt->nextpid++;
+      while (pt->procs[PROCS_IDX(pid)] != NULL) {
+        pid = pt->nextpid++;
+        /* Check if a wrap around is needed for next possible pid */
+        if (pt->nextpid > PID_MAX) {
+          pt->nextpid = PID_MIN;
         }
-        i++;
-        if (i>processTable.dimTable)
-          i=1;
       }
 
-      if(!found && processTable.dimTable<__PID_MAX) {
-        // devo allocare piu' spazio nella tabella dei processi
-        buff=kmalloc((++proc_hundreds)*MAX_PROC*sizeof(struct proc *));
+      /* Assign pid to process */
+      proc->p_pid = pid;
 
-        for(i=0; i<processTable.dimTable+1; i++)
-          buff[i]=processTable.proc[i];
+      /* Store proc pointer in array of current active processes */
+      pt->procs[PROCS_IDX(pid)] = proc;
 
-        // guarda appunti per queste ultime due linee di codice, ragionamento dovrebbe essere corretto
-        kfree(processTable.proc); 
-        processTable.proc=buff;
-        processTable.last_i=processTable.dimTable+1;
-        processTable.dimTable+=proc_hundreds*MAX_PROC+1;
+      /* Increment number of current active processes */
+      pt->numprocs++;
 
-        proc->p_pid = processTable.last_i;
-        found=1;
-      }
+      KASSERT(pt->numprocs <= (MAX_SYSTEM_PROCS - PID_MIN));
 
-        
-      spinlock_release(&processTable.lk);
-  
-      if (proc->p_pid==0) {
-        // se si arriva qui vuol solo dire che il numero di processi che si vuole tenere
-        // in memoria e' eccessivo e supera __PID_MAX
-  
-        /* ------------------------------------------------------------------------ 
-           AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-                              COMPLETARE QUESTA PARTE
-           AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-           ----------------------------------------------------------------------------*/
-          panic("too many processes. proc table is full\n");
+      spinlock_release(&pt->lock);
 
-          return -1; // fix this with right error code
-      }
-  
-      proc->p_status = 0;
-      proc->p_sem = sem_create(name, 0);
-      return proc->p_pid;
+      return 0;
 }
 
-static void processTable_remove(struct proc *proc)
+/*
+ * Remove a process from the Process Table.
+ */
+static void proc_table_remove(struct proc *proc)
 {
-      /* remove the process from the table */
-      int i;
+      pid_t pid;
+      struct proc* p;
+
+      KASSERT(proc != NULL);
+      KASSERT(pt != NULL);
+
+      pid = proc->p_pid;
+
+      KASSERT((pid >= PID_MIN) && (pid <= PID_MAX));
+
+      spinlock_acquire(&pt->lock);
+
+      /* Retrieve proc pointer from array of current active processes */
+      p = pt->procs[PROCS_IDX(pid)];
+      if (p != NULL) {
+        /* Free corresponding slot in array of current active processes */
+        pt->procs[PROCS_IDX(pid)] = NULL;
+        /* Decrement number of current active processes */
+        pt->numprocs--;
+      }
+
+      spinlock_release(&pt->lock);
+}
+
+/*
+ * Create the list of child processes.
+ * Return proper error code on error:
+ * - ENOMEM: sufficient memory was not available
+ */
+static int proc_children_create(struct proc *proc)
+{
+      KASSERT(proc != NULL);
+
+      proc->p_children = list_create();
+      if (proc->p_children == NULL) {
+        return ENOMEM;
+      }
+
+      return 0;
+}
+
+/*
+ * Destroy the list of child processes.
+ */
+static void proc_children_destroy(struct proc *proc)
+{
+      KASSERT(proc != NULL);
+
+      KASSERT(proc->p_children != NULL);
+      KASSERT(list_isEmpty(proc->p_children));
+
+      list_destroy(proc->p_children);
+      proc->p_children = NULL;
+}
+
+/*
+ * Add a process to the list of child processes.
+ * Return proper error code on error:
+ * - ENOMEM: sufficient memory was not available
+ * - EMPROC: parent process has too much children processes
+ */
+static int proc_children_add(struct proc *pparent, struct proc *pchild)
+{
+      int result;
+
+      KASSERT(pparent != NULL);
+      KASSERT(pchild != NULL);
+
+      KASSERT(pchild != kproc);
+
+      pchild->p_parent_pid = pparent->p_pid;
+
+      if (list_size(pparent->p_children) < MAX_CHILD_PROCS) {
+        /* Add the child process to the list of children of the parent process */
+        result = list_insertTail(pparent->p_children, pchild);
+        if (result) {
+          return result;
+        }
+      } else {
+        /* Parent process has too much children processes */
+        return EMPROC;
+      }
+
+      return 0;
+}
+
+/*
+ * Remove a process from the list of child processes.
+ */
+static void proc_children_remove(struct proc *proc)
+{
+      struct proc *pparent, *pchild;
 
       KASSERT(proc != NULL);
 
-      spinlock_acquire(&processTable.lk);
-      i = proc->p_pid;
-      KASSERT(i>0 && i<=MAX_PROC); // gestione seria errori
-      /* ------------------------------------------------------------------------ 
-         AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-                                COMPLETARE QUESTA PARTE
-         AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-         ----------------------------------------------------------------------------*/
+      pparent = pt->procs[PROCS_IDX(proc->p_parent_pid)];
 
-      processTable.proc[i] = NULL;
-      spinlock_release(&processTable.lk);
+      KASSERT(pparent != NULL);
 
-      sem_destroy(proc->p_sem);
-}
-
-static int procChildren_create(struct proc *p)
-{
-      KASSERT(p != NULL);
-
-      // Init list of children for process p
-      p->p_children = list_create();
-      if (p->p_children == NULL) {
-        return 1;   // TODO: Error handling
-      }
-
-      // Parent pid set as same pid
-      p->p_parent_pid = p->p_pid;
-
-      return 0;
+      /* Remove the child process from the list of children of the parent process */
+      pchild = list_deleteByKey(pparent->p_children, &(proc->p_pid), (unsigned char *)(&(proc->p_pid)) - (unsigned char *)proc, sizeof(proc->p_pid));
+      KASSERT(proc == pchild);
 }
 #endif
 
 /*
  * Create a proc structure.
+ * Return proper error code on error:
+ * - ENOMEM: sufficient memory was not available
+ * - ENPROC: there are already too many processes on the system
  */
-static struct proc *proc_create(const char *name)
+static int proc_create(const char *name, struct proc **retproc)
 {
       struct proc *proc;
 
       proc = kmalloc(sizeof(*proc));
       if (proc == NULL) {
-        return NULL;
+        return ENOMEM;
       }
       proc->p_name = kstrdup(name);
       if (proc->p_name == NULL) {
         kfree(proc);
-        return NULL;
+        return ENOMEM;
       }
 
-      proc->p_numthreads = 0;
       spinlock_init(&proc->p_lock);
+      proc->p_numthreads = 0;
 
       /* VM fields */
       proc->p_addrspace = NULL;
@@ -223,32 +306,56 @@ static struct proc *proc_create(const char *name)
       proc->p_cwd = NULL;
 
 #if OPT_SHELL
-      pid_t pid;
+      int result;
 
-      if(processTable.active)
-        {
-          // im creating a user process
-          pid=(pid_t) processTable_add(proc, name);
-          
-          if (pid==-1) // too many processes
-            return NULL;
+      proc->p_exited = false;
 
-          if(procChildren_create(proc))
-            return NULL; // allocation problem          
-          
+      proc->p_orphan = false;
+
+      result = proc_children_create(proc);
+      if(result) {
+        kfree(proc->p_name);
+        kfree(proc);
+        return result;
+      }
+
+      if (strcmp(name, "[kernel]") == 0) {
+        proc->p_parent_pid = 0;
+        proc->p_pid = 1;
+        spinlock_acquire(&pt->lock);
+        pt->procs[proc->p_pid] = proc;
+        spinlock_release(&pt->lock);
+      } else {
+        proc->p_parent_pid = curproc->p_pid;
+        result = proc_table_add(proc);
+        if (result) {
+          proc_children_destroy(proc);
+          kfree(proc->p_name);
+          kfree(proc);
+          return result;
         }
+      }
+
+      proc->p_sem = sem_create(name, 0);
+      if (proc->p_sem == NULL) {
+        proc_table_remove(proc);
+        proc_children_destroy(proc);
+        kfree(proc->p_name);
+        kfree(proc);
+        return ENOMEM;
+      }
 #endif
 #if OPT_FILE
       bzero(proc->fileTable,OPEN_MAX*sizeof(struct openfile *));
 #endif
-      return proc;
+
+      *retproc = proc;
+
+      return 0;
 }
 
 /*
  * Destroy a proc structure.
- *
- * Note: nothing currently calls this. Your wait/exit code will
- * probably want to do so.
  */
 void proc_destroy(struct proc *proc)
 {
@@ -268,6 +375,12 @@ void proc_destroy(struct proc *proc)
        * reference to this structure. (Otherwise it would be
        * incorrect to destroy it.)
        */
+
+#if OPT_SHELL
+      sem_destroy(proc->p_sem);
+      proc_table_remove(proc);
+      proc_children_destroy(proc);
+#endif
 
       /* VFS fields */
       if (proc->p_cwd) {
@@ -326,11 +439,6 @@ void proc_destroy(struct proc *proc)
       KASSERT(proc->p_numthreads == 0);
       spinlock_cleanup(&proc->p_lock);
 
-#if OPT_SHELL
-      processTable_remove(proc);
-      procChild_remove(proc);
-#endif
-
       kfree(proc->p_name);
       kfree(proc);
 }
@@ -340,43 +448,42 @@ void proc_destroy(struct proc *proc)
  */
 void proc_bootstrap(void)
 {
-
-      kproc = proc_create("[kernel]");
-      if (kproc == NULL) {
-      panic("proc_create for kproc failed\n");
-      }
+      int result;
 
 #if OPT_SHELL
-      spinlock_init(&processTable.lk);
-      /* kernel process is not registered in the table */
-      processTable.dimTable=proc_hundreds*100+1;
-      processTable.proc=kmalloc(processTable.dimTable*sizeof(struct proc *));
-      
-
-      processTable.active = 1;
+      result = proc_table_create();
+      if (result) {
+        panic("proc_table_create failed: %s\n", strerror(result));
+      }
 #endif
 
-
+      result = proc_create("[kernel]", &kproc);
+      if (result) {
+        panic("proc_create for kproc failed: %s\n", strerror(result));
+      }
 }
-
 
 /*
  * Create a fresh proc for use by runprogram.
+ * Return proper error code on error:
+ * - ENOMEM: sufficient memory was not available
+ * - ENPROC: there are already too many processes on the system
+ * - EMPROC: parent process has too much children processes
  *
  * It will have no address space and will inherit the current
  * process's (that is, the kernel menu's) current directory.
  */
-struct proc *proc_create_runprogram(const char *name)
+int proc_create_runprogram(const char *name, struct proc **retproc)
 {
       struct proc *newproc;
+      int result;
 
-      newproc = proc_create(name);
-      if (newproc == NULL) {
-        return NULL;
+      result = proc_create(name, &newproc);
+      if (result) {
+        return result;
       }
 
       /* VM fields */
-
       newproc->p_addrspace = NULL;
 
       /* VFS fields */
@@ -393,7 +500,15 @@ struct proc *proc_create_runprogram(const char *name)
       }
       spinlock_release(&curproc->p_lock);
 
-      return newproc;
+      /* Link child process to its parent, so that child terminates on parent exit */
+      result = proc_children_add(curproc, newproc);
+      if(result){
+        return result;
+      }
+
+      *retproc = newproc;
+
+      return 0;
 }
 
 /*
@@ -491,25 +606,93 @@ struct addrspace *proc_setas(struct addrspace *newas)
 }
 
 #if OPT_SHELL
+/*
+ * Search for a process by pid in the Process Table.
+ * Return proper error code on error:
+ * - ESRCH: the pid argument named a nonexistent process
+ */
+int proc_table_search(pid_t pid, struct proc **retproc)
+{
+      struct proc *p;
+
+      if ((pid < PID_MIN) || (pid > PID_MAX)) {
+        return ESRCH;
+      }
+
+      spinlock_acquire(&pt->lock);
+      p = pt->procs[PROCS_IDX(pid)];
+      spinlock_release(&pt->lock);
+
+      if (p == NULL) {
+        return ESRCH;
+      }
+
+      KASSERT(p->p_pid == pid);
+
+      *retproc = p;
+
+      return 0;
+}
+
+/*
+ * Wait for process termination, destroy the process, and return exit status.
+ */
 int proc_wait(struct proc *proc)
 {
-      int return_status;
-      /* NULL and kernel proc forbidden */
-      KASSERT(proc != NULL); // gestire questo con errore?
-      /* ------------------------------------------------------------------------ 
-         AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-                              COMPLETARE QUESTA PARTE
-         AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-         ----------------------------------------------------------------------------*/
+      int exit_status;
 
+      KASSERT(proc != NULL);
       KASSERT(proc != kproc);
 
-      /* wait on semaphore*/ 
-      proc_signal_wait(proc);
+      /*
+       * Wait on semaphore of the process.
+       * If the process has already exited, don't waste time waiting on semaphore.
+       */
+      if (!proc->p_exited) {
+        P(proc->p_sem);
+      }
 
-      return_status = proc->p_status;
+      /* Save exit status */
+      exit_status = proc->p_exit_status;
+
+      /* Destroy the process structure */
       proc_destroy(proc);
-      return return_status;
+
+      return exit_status;
+}
+
+/*
+ * Signal for process termination.
+ */
+void proc_signal(struct proc *proc) {
+      struct proc *pchild;
+
+      KASSERT(proc != NULL);
+
+      /*
+       * Remove process from list of child processes of the parent process.
+       * If the parent process has already exited (process is orphan), skip.
+       */
+      if (!proc->p_orphan) {
+        proc_children_remove(proc);
+      }
+
+      /* Check child processes */
+      while (!list_isEmpty(proc->p_children)) {
+        /* Retrieve child process */
+        pchild = list_deleteHead(proc->p_children);
+
+        /* Set child process as orphan */
+        pchild->p_orphan = true;
+      }
+
+      /*
+       * Signal on semaphore of the process.
+       * If the parent process has already exited (process is orphan), don't waste time signaling on semaphore.
+       */
+      if (!proc->p_orphan) {
+        V(proc->p_sem);
+      }
 }
 
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest)
@@ -528,63 +711,5 @@ void proc_file_table_copy(struct proc *psrc, struct proc *pdest)
           openfileIncrRefCount(of);
         }
       }
-}
-
-int procChild_add(struct proc *pparent, struct proc *pchild)
-{
-      KASSERT(pparent != NULL);
-      KASSERT(pchild != NULL);
-
-      KASSERT(pparent != kproc); // parent process can't be kproc // NOTE: Why? Maybe pchild cannot be kproc
-
-      pchild->p_parent_pid = pparent->p_pid;
-
-      if (list_size(pparent->p_children) < __PID_CHILDREN_MAX) {  // TODO: Remove __PID_CHILDREN_MAX and add a const in this file
-        // Add the child process to the list of children of the parent process
-        if (!list_insertTail(pparent->p_children, pchild)) {
-          // TODO: Error handling
-          return 1;
-        }
-      } else {
-        // Parent process has too much children processes
-        return EMPROC;
-      }
-
-      return 0;
-}
-
-int procChild_remove(struct proc *proc)
-{
-      struct proc *pparent;
-
-      KASSERT(proc != NULL);
-
-      pparent = _PROCTABLE_proc(proc->p_parent_pid);
-
-      if(proc->p_parent_pid != proc->p_pid) {
-        // Remove the child process from the list of children of the parent process
-        if (!list_deleteByKey(pparent->p_children, &(proc->p_pid), sizeof(proc->p_pid), (unsigned char *)(&(proc->p_pid)) - (unsigned char *)proc)) {
-          // TODO: Error handling
-          return 1;
-        }
-      }
-
-      // TODO: gestire deallocazione proc->children
-
-      return 0;
-}
-
-void proc_signal_wait(struct proc *proc)
-{
-      KASSERT(proc != NULL);
-
-      P(proc->p_sem);
-}
-
-void proc_signal_end(struct proc *proc)
-{
-      KASSERT(proc != NULL);
-
-      V(proc->p_sem);
 }
 #endif

@@ -79,9 +79,6 @@
 /* Max value for a process ID (change this to match your implementation) */
 #define __PID_MAX       32767
 
-/* Max number of children refers to a single parent */
-#define __PID_CHILDREN_MAX 100
-
 /* Max open files per process */
 #define __OPEN_MAX      128
 

@@ -64,27 +64,25 @@ struct vnode;
  */
 
 struct proc {
-	char *p_name;			/* Name of this process */
-	struct spinlock p_lock;		/* Lock for this structure */
-	unsigned p_numthreads;		/* Number of threads in this process */
+  char *p_name;                   /* name of this process */
+  struct spinlock p_lock;         /* lock for this structure */
+  unsigned p_numthreads;          /* number of threads in this process */
 
-	/* VM */
-	struct addrspace *p_addrspace;	/* virtual address space */
+  /* VM */
+  struct addrspace *p_addrspace;  /* virtual address space */
 
-	/* VFS */
-	struct vnode *p_cwd;		/* current working directory */
+  /* VFS */
+  struct vnode *p_cwd;            /* current working directory */
 
-	/* add more material here as needed */
 #if OPT_SHELL
-  int p_status;                   /* status as obtained by exit() */
-  pid_t p_pid;                    /* process pid */
-  struct semaphore *p_sem;
+  int p_exit_status;              /* status as obtained by exit() */
+  bool p_exited;                  /* indicate if the process has exited */
+  bool p_orphan;                  /* indicate if the parent has exited but the process is still running */
+  pid_t p_parent_pid;             /* parent process ID (pid) */
+  pid_t p_pid;                    /* process ID (pid) */
+  list p_children;                /* list of child processes */
+  struct semaphore *p_sem;        /* semaphore used for waitpid */
   struct openfile *fileTable[OPEN_MAX];
-
-  // Parent pid
-  pid_t p_parent_pid;
-  // List of children for this process
-  list p_children;
 #endif
 };
 
@@ -96,7 +94,7 @@ extern struct proc *kproc;
 void proc_bootstrap(void);
 
 /* Create a fresh process for use by runprogram(). */
-struct proc *proc_create_runprogram(const char *name);
+int proc_create_runprogram(const char *name, struct proc **retproc);
 
 /* Destroy a process. */
 void proc_destroy(struct proc *proc);
@@ -115,20 +113,14 @@ struct addrspace *proc_setas(struct addrspace *);
 
 
 #if OPT_SHELL
-/* wait for process termination, and return exit status */
+/* Wait for process termination, destroy the process, and return exit status */
 int proc_wait(struct proc *proc);
-/* get proc from pid */
-struct proc *proc_search_pid(pid_t pid);
-/* signal end/exit of process */
-void proc_signal_end(struct proc *proc);
-/* wait end/exit of process */
-void proc_signal_wait(struct proc *proc);
-/* copy file table from a process to another process */
+/* Signal end/exit of process */
+void proc_signal(struct proc *proc);
+/* Get proc from pid */
+int proc_table_search(pid_t pid, struct proc **retproc);
+/* Copy file table from a process to another process */
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest);
-/* link child process to its parent process */
-int procChild_add(struct proc *pparent, struct proc *pchild);
-/* unlink child process to its parent process */
-int procChild_remove(struct proc *proc);
 #endif
 
 

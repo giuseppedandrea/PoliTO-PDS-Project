@@ -1,4 +1,5 @@
 #include <types.h>
+#include <kern/errno.h>
 #include <lib.h>
 #include <list.h>
 
@@ -63,21 +64,24 @@ list list_create(void) {
 }
 
 bool list_isEmpty(list l) {
+    KASSERT(l != NULL);
+
     return l->cnt == 0;
 }
 
 size_t list_size(list l) {
+    KASSERT(l != NULL);
+
     return l->cnt;
 }
 
-bool list_insertHead(list l, void *data) {
-    if ((l == NULL) || (data == NULL)) {
-        return false;
-    }
+int list_insertHead(list l, void *data) {
+    KASSERT(l != NULL);
+    KASSERT(data != NULL);
 
     node_t *n = newNode(data, l->head, NULL);
     if (n == NULL) {
-        return false;
+        return ENOMEM;
     }
 
     if (l->head != NULL) {
@@ -89,17 +93,16 @@ bool list_insertHead(list l, void *data) {
 
     l->cnt++;
 
-    return true;
+    return 0;
 }
 
-bool list_insertTail(list l, void *data) {
-    if ((l == NULL) || (data == NULL)) {
-        return false;
-    }
+int list_insertTail(list l, void *data) {
+    KASSERT(l != NULL);
+    KASSERT(data != NULL);
 
     node_t *n = newNode(data, NULL, l->tail);
     if (n == NULL) {
-        return false;
+        return ENOMEM;
     }
 
     if (l->tail != NULL) {
@@ -111,13 +114,13 @@ bool list_insertTail(list l, void *data) {
 
     l->cnt++;
 
-    return true;
+    return 0;
 }
 
 void *list_searchByKey(list l, const void *key, size_t key_offset, size_t key_size) {
-    if ((l == NULL) || (key == NULL) || (key_size == 0)) {
-        return NULL;
-    }
+    KASSERT(l != NULL);
+    KASSERT(key != NULL);
+    KASSERT(key_size > 0);
 
     node_t *n;
     for (n = l->head; n != NULL; n=n->next) {
@@ -130,7 +133,9 @@ void *list_searchByKey(list l, const void *key, size_t key_offset, size_t key_si
 }
 
 void *list_deleteHead(list l) {
-    if ((l == NULL) || (l->head == NULL)) {
+    KASSERT(l != NULL);
+
+    if (l->head == NULL) {
         return NULL;
     }
 
@@ -151,7 +156,9 @@ void *list_deleteHead(list l) {
 }
 
 void *list_deleteTail(list l) {
-    if ((l == NULL) || (l->tail == NULL)) {
+    KASSERT(l != NULL);
+
+    if (l->tail == NULL) {
         return NULL;
     }
 
@@ -172,9 +179,9 @@ void *list_deleteTail(list l) {
 }
 
 void *list_deleteByKey(list l, const void *key, size_t key_offset, size_t key_size) {
-    if ((l == NULL) || (key == NULL) || (key_size == 0)) {
-        return NULL;
-    }
+    KASSERT(l != NULL);
+    KASSERT(key != NULL);
+    KASSERT(key_size > 0);
 
     node_t *n;
     for (n = l->head; n != NULL; n=n->next) {
@@ -201,9 +208,7 @@ void *list_deleteByKey(list l, const void *key, size_t key_offset, size_t key_si
 }
 
 void list_destroy(list l) {
-    if (l == NULL) {
-        return;
-    }
+    KASSERT(l != NULL);
 
     node_t *n, *tmp;
     n = l->head;

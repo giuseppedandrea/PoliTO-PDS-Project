@@ -149,7 +149,6 @@ syscall(struct trapframe *tf)
             break;
 	    case SYS_getpid:
             retval = sys_getpid();
-            if (retval<0) err = ENOSYS; // TODO: Is it necessary?
             break;
 	    case SYS_fork:
             retval = sys_fork(tf, &err);

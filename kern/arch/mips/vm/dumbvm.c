@@ -899,3 +899,47 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 }
 
 #endif
+
+#if OPT_SHELL
+bool
+as_check_addr(struct addrspace *as, vaddr_t vaddr)
+{
+	vaddr_t vbase1, vtop1, vbase2, vtop2, stackbase, stacktop;
+
+	/* Assert that the address space has been set up properly. */
+	KASSERT(as != NULL);
+	KASSERT(as->as_vbase1 != 0);
+	KASSERT(as->as_pbase1 != 0);
+	KASSERT(as->as_npages1 != 0);
+	KASSERT(as->as_vbase2 != 0);
+	KASSERT(as->as_pbase2 != 0);
+	KASSERT(as->as_npages2 != 0);
+	KASSERT(as->as_stackpbase != 0);
+	KASSERT((as->as_vbase1 & PAGE_FRAME) == as->as_vbase1);
+	KASSERT((as->as_pbase1 & PAGE_FRAME) == as->as_pbase1);
+	KASSERT((as->as_vbase2 & PAGE_FRAME) == as->as_vbase2);
+	KASSERT((as->as_pbase2 & PAGE_FRAME) == as->as_pbase2);
+	KASSERT((as->as_stackpbase & PAGE_FRAME) == as->as_stackpbase);
+
+	vbase1 = as->as_vbase1;
+	vtop1 = vbase1 + as->as_npages1 * PAGE_SIZE;
+	vbase2 = as->as_vbase2;
+	vtop2 = vbase2 + as->as_npages2 * PAGE_SIZE;
+	stackbase = USERSTACK - DUMBVM_STACKPAGES * PAGE_SIZE;
+	stacktop = USERSTACK;
+
+	if ((vaddr >= vbase1) && (vaddr < vtop1)) {
+		return true;
+	}
+
+	if ((vaddr >= vbase2) && (vaddr < vtop2)) {
+		return true;
+	}
+
+	if ((vaddr >= stackbase) && (vaddr < stacktop)) {
+		return true;
+	}
+
+	return false;
+}
+#endif

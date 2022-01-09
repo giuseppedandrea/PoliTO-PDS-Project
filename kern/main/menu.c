@@ -115,12 +115,12 @@ int
 common_prog(int nargs, char **args)
 {
 	struct proc *proc;
-	int result, exit_code;
+	int result;
 
 	/* Create a process for the new program to run in. */
-	proc = proc_create_runprogram(args[0] /* name */);
+	result = proc_create_runprogram(args[0] /* name */, &proc);
 	if (proc == NULL) {
-		return ENOMEM;
+		return result;
 	}
 
 	result = thread_fork(args[0] /* thread name */,
@@ -134,10 +134,9 @@ common_prog(int nargs, char **args)
 	}
 
 #if OPT_SHELL
-	exit_code=proc_wait(proc);
-	return 0;
+	result = proc_wait(proc);
+	kprintf("[process exited with code %d]\n", result);
 #endif
-	(void) exit_code;
 
 	return 0;
 }

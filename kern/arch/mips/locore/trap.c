@@ -28,8 +28,10 @@
  */
 
 #include <types.h>
+#include <kern/wait.h>
 #include <signal.h>
 #include <lib.h>
+#include <proc.h>
 #include <mips/specialreg.h>
 #include <mips/trapframe.h>
 #include <cpu.h>
@@ -108,13 +110,37 @@ kill_curthread(vaddr_t epc, unsigned code, vaddr_t vaddr)
 		break;
 	}
 
-	/*
-	 * You will probably want to change this.
-	 */
+#if OPT_SHELL
+	struct proc *proc = curproc;
 
+	(void)epc;
+	(void)vaddr;
+
+	/*
+	 * Set encoded exit status.
+	 * Since core dump files are not implemented, _MKWAIT_CORE() is never used.
+	 */
+	proc->p_exit_status = _MKWAIT_SIG(sig);
+
+	/* Set process has exited */
+	proc->p_exited = true;
+
+	/* Remove the current thread from its process */
+	proc_remthread(curthread);
+	KASSERT(curthread->t_proc == NULL);
+
+	/* Signal exit of process */
+	proc_signal(proc);
+
+	/* Cause the current thread to exit */
+	thread_exit();
+
+	panic("kill_curthread returned (should not happen)\n");
+#else
 	kprintf("Fatal user mode trap %u sig %d (%s, epc 0x%x, vaddr 0x%x)\n",
 		code, sig, trapcodenames[code], epc, vaddr);
 	panic("I don't know how to handle this\n");
+#endif
 }
 
 /*
