@@ -248,6 +248,41 @@ static void carraytest_e(CAoperations ops) {
     kprintf("Test e done.\n");
 }
 
+static void carraytest_f(CAoperations ops) {
+    int i, result, n;
+    cirarray ca, cadst;
+    count=0;
+
+    kprintf("Test f doing...\n");
+
+    ca=CA_create(100, ops);
+    KASSERT(CA_isEmpty(ca));
+
+    n=29;
+    for(i=0; i<n; i++) {
+        result=CA_add(ca, ops.newItem());	
+        KASSERT(result != 0);
+
+    }
+    KASSERT(CA_size(ca) == n);
+
+    kprintf("Stamp CA.\n");
+    CA_stamp(ca);
+
+    kprintf("Duplicating CA...\n");
+
+    cadst=CA_duplicate(ca);
+    kprintf("CA duplicated.\n");
+
+    kprintf("Stamp CA duplicated...\n");
+    CA_stamp(cadst);
+    
+    kprintf("Well done.\n");
+    
+    CA_destroy(ca);
+    CA_destroy(cadst);
+    kprintf("Test f done.\n");
+}
 
 int carraytest(int nargs, char **args) {
     //cirarray ca;
@@ -270,6 +305,8 @@ int carraytest(int nargs, char **args) {
     carraytest_c(ops);
     carraytest_d(ops);
     carraytest_e(ops);
+    carraytest_f(ops);
+
 
     kprintf("Done.\n");
 
