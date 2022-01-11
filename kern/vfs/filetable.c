@@ -29,6 +29,12 @@
 static cirarray system_openTable; 
 
 
+void openfileIncrRefCount(fcb file) {
+  if (file != NULL)
+    file->countRef++;
+}   
+
+
 void sys_fileTable_bootstrap(void)
 {
     CAoperations ops;

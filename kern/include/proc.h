@@ -130,8 +130,6 @@ void proc_signal_wait(struct proc *proc);
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest);
 int procChild_add(struct proc *fath, struct proc *ch);
 int procChild_remove(struct proc *proc);
-int proc_fileTable_create(struct proc *proc);
-int proc_fileTable_destroy(struct proc *proc);
 int proc_fileTable_add(struct proc *proc, int indTable);
 int proc_fileTable_remove(struct proc *proc, int fd);
 int proc_fileTable_get(struct proc *proc, int fd);

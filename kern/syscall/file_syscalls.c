@@ -13,24 +13,18 @@
 #include <proc.h>
 
 #if OPT_SHELL
-
+#include "item.h"
 
 
 #define USE_KERNEL_BUFFER 0
-
-void openfileIncrRefCount(fcb file) {
-  if (file != NULL)
-    file->countRef++;
-}   
 
 /*
  * file system calls for open/close
  */
 int sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
 {
-  int fd, i, indTable;
+  int fd, indTable;
   struct vnode *v;
-  struct openfile *of=NULL; 	
   int result;
   fcb newFile;
 
@@ -93,6 +87,25 @@ int sys_close(int fd)
   vfs_close(vn);	
   return 0;
 }
+
+
+int sys_write(int fd, userptr_t buf_ptr, size_t size)
+{
+  (void) fd;
+  (void) buf_ptr;
+  (void) size;
+  return 1;
+  
+}
+
+int sys_read(int fd, userptr_t buf_ptr, size_t size)
+{
+  (void) fd;
+  (void) buf_ptr;
+  (void) size;
+  return 1;
+}
+
 
 #endif
 
@@ -230,7 +243,6 @@ file_write(int fd, userptr_t buf_ptr, size_t size) {
 #endif
 
 
-/*
  * simple file system calls for write/read
  */
 /*

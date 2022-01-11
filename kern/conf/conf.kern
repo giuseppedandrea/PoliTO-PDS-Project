@@ -461,5 +461,5 @@ optfile shell test/listtest.c
 optfile shell lib/circulararray.c
 optfile shell test/circulararraytest.c
 optfile shell vfs/filetable.c
-optfile shell vfs/item.c
+optfile shell lib/item.c
 

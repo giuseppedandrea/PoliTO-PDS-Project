@@ -1,6 +1,6 @@
 #include "item.h"
 
-fcb newFCB(void)
+CAitem newFCB(void)
 {
     fcb new=kmalloc(sizeof(*new));
     bzero(new, sizeof(*new));
@@ -16,14 +16,13 @@ int cmpFCB(CAkey a , CAkey b)
     return vn1==vn2;
 }
 
-int freeFCB(CAitem a)
+void freeFCB(CAitem a)
 {
     fcb source=(fcb) a;
 
     vnode_cleanup(source->vn);
-    lock_destroy(&(source->vn_lk));
+    lock_destroy((source->vn_lk));
     kfree(a);
-    return 0;
 }
 
 CAitem copyFCB(CAitem source)
@@ -59,11 +58,10 @@ int cmpInt(CAkey a , CAkey b)
     return *((int *) a) - *((int *) b);
 }
 
-int freeInt(CAitem a)
+void freeInt(CAitem a)
 {
     int *source=(int *) a;
     kfree(source);
-    return 0;
 }
 
 CAitem copyInt(CAitem source)

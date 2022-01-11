@@ -14,8 +14,11 @@ struct _file
     struct vnode *vn;
     off_t offset; 
     unsigned int countRef;
-    struct lock vn_lk;
+    struct lock *vn_lk;
 };  
+
+
+void openfileIncrRefCount(fcb file);
 
 // qui aggiungere funzioni che agiscono sulla struct definita dentro filetable.c
 void sys_fileTable_bootstrap(void);
