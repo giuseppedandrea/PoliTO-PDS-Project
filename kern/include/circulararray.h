@@ -38,6 +38,10 @@ cirarray CA_create(int maxD, CAoperations ops);
 Returns 1 = error, 0 = success */
 int CA_destroy(cirarray ca);
 
+/* Duplicate circular array source on another
+Returns NULL = error, cirarray = success */
+cirarray CA_duplicate(cirarray src);
+
 /* Add operation, reallocate array in case of space necessity
 Returns position on array where element is addes, 0 in case of error */
 int CA_add(cirarray ca, CAitem it);

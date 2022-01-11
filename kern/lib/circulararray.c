@@ -204,6 +204,31 @@ int CA_remove(cirarray ca, CAkey key)
     return 0;
 }
 
+cirarray CA_duplicate(cirarray src)
+{
+    cirarray dst;
+    int i;
+
+    if(src==NULL)
+        return NULL;
+
+    dst=kmalloc(sizeof(*dst));
+    dst->ops=src->ops;
+    dst->curdim=src->curdim;
+    dst->lastpos=src->lastpos;
+    dst->nelements=src->nelements;
+    dst->maxdim=src->maxdim;
+    dst->item=kmalloc(dst->curdim*sizeof(CAitem));
+    bzero(dst->item, dst->curdim*sizeof(CAitem));
+
+
+    for(i=1; i<dst->curdim; i++)
+        if(src->item[i]!=NULL)
+            dst->item[i]=dst->ops.copyItem(src->item[i]);
+    
+    return dst;
+}
+
 int CA_stamp(cirarray ca)
 {
     int i;
@@ -217,8 +242,6 @@ int CA_stamp(cirarray ca)
 
     return 0;
 }
-
-
 
 int CA_size(cirarray ca)
 {
