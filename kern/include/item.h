@@ -10,12 +10,15 @@
 #include "filetable.h"
 #include "circulararray.h"
 #include <synch.h>
+#include <vfs.h>
+
 
 #if OPT_SHELL
 
 
 /* FCB operations */
 CAitem newFCB(void);
+CAitem newFCB_filled(struct vnode *v, off_t offset, unsigned int countRef, struct lock *vn_lk);
 int cmpFCB(CAkey a , CAkey b);
 void freeFCB(CAitem a);
 CAitem copyFCB(CAitem source);
@@ -27,7 +30,6 @@ int cmpInt(CAkey a , CAkey b);
 void freeInt(CAitem a);
 CAitem copyInt(CAitem source);
 CAkey getIntKey(CAitem source);
-
 
 #endif
 

@@ -63,6 +63,7 @@ int sys_fileTable_remove(int ind)
 
 fcb sys_fileTable_get(int ind)
 {
-    return CA_get_byIndex(system_openTable, ind);
+    fcb file=CA_get_byIndex(system_openTable, ind);
+    return file;
 }
 

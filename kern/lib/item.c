@@ -7,6 +7,23 @@ CAitem newFCB(void)
     return new==NULL? NULL:new;
 }
 
+CAitem newFCB_filled(struct vnode *v, off_t offset, unsigned int countRef, struct lock *vn_lk)
+{
+    
+    fcb new=kmalloc(sizeof(*new));
+    bzero(new, sizeof(*new));
+
+    if(new==NULL)
+        return NULL;
+
+    new->vn=v;
+    new->offset=offset;
+    new->vn_lk=vn_lk;
+    new->countRef=countRef;
+
+    return new;
+}
+
 int cmpFCB(CAkey a , CAkey b)
 {
     struct vnode *vn1, *vn2;
@@ -20,7 +37,7 @@ void freeFCB(CAitem a)
 {
     fcb source=(fcb) a;
 
-    vnode_cleanup(source->vn);
+    vfs_close(source->vn);
     lock_destroy((source->vn_lk));
     kfree(a);
 }

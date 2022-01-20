@@ -444,7 +444,7 @@ optfile net	test/nettest.c
 
 
 defoption syscalls
-optfile syscalls syscall/file_syscalls.c
+#optfile syscalls syscall/file_syscalls.c
 optfile syscalls syscall/proc_syscalls.c
 
 defoption file
@@ -462,4 +462,7 @@ optfile shell lib/circulararray.c
 optfile shell test/circulararraytest.c
 optfile shell vfs/filetable.c
 optfile shell lib/item.c
+optfile shell syscall/open_close.c
+optfile shell syscall/read_write.c
+optfile shell syscall/lseek.c
 

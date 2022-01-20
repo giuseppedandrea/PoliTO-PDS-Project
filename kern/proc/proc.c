@@ -88,6 +88,7 @@ struct _children {
 static int proc_fileTable_create(struct proc *proc)
 {
   CAoperations ops;
+  int *stdin, *stdout, *stderr;
 
   if(proc==NULL)
     return 1;
@@ -98,9 +99,17 @@ static int proc_fileTable_create(struct proc *proc)
   ops.copyItem=copyInt;
   ops.getItemKey=getIntKey;
 
-  proc->ft=CA_create(MAX_OPEN_TABLE, ops);
+  proc->ft=CA_create(OPEN_MAX, ops);
   if(proc->ft==NULL)
     return 1;
+  
+  stdin=newInt();
+  stdout=newInt();
+  stderr=newInt();
+
+  CA_add(proc->ft, stdin);
+  CA_add(proc->ft, stdout);
+  CA_add(proc->ft, stderr);
 
   return 0;
 }
@@ -668,7 +677,7 @@ void proc_signal_end(struct proc *proc)
 /* Adding on file table file descriptor of system file table */
 int proc_fileTable_add(struct proc *proc, int indTable)
 {
-  return CA_add(proc->ft, &indTable);
+  return CA_add(proc->ft, copyInt(&indTable));
 }
 
 /* Remove on file table file descriptor of system file table*/
