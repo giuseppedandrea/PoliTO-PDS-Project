@@ -12,9 +12,11 @@ typedef struct _file* fcb;
 struct _file
 {
     struct vnode *vn;
+    off_t size;
     off_t offset; 
     unsigned int countRef;
     struct lock *vn_lk;
+    
 };  
 
 

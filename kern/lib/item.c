@@ -9,17 +9,20 @@ CAitem newFCB(void)
 
 CAitem newFCB_filled(struct vnode *v, off_t offset, unsigned int countRef, struct lock *vn_lk)
 {
-    
+    struct stat *st=kmalloc(sizeof(struct stat));
     fcb new=kmalloc(sizeof(*new));
     bzero(new, sizeof(*new));
 
     if(new==NULL)
         return NULL;
 
+
+    VOP_STAT(v, st);
     new->vn=v;
     new->offset=offset;
     new->vn_lk=vn_lk;
     new->countRef=countRef;
+    new->size=st->st_size;
 
     return new;
 }
@@ -51,6 +54,7 @@ CAitem copyFCB(CAitem source)
     b->vn_lk=a->vn_lk;
     b->offset=a->offset;
     b->countRef=a->countRef;
+    b->size=a->size;
 
     return b;
 }

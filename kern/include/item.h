@@ -11,7 +11,7 @@
 #include "circulararray.h"
 #include <synch.h>
 #include <vfs.h>
-
+#include <stat.h>
 
 #if OPT_SHELL
 
