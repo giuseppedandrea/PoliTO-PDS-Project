@@ -46,6 +46,10 @@ cirarray CA_duplicate(cirarray src);
 Returns position on array where element is addes, 0 in case of error */
 int CA_add(cirarray ca, CAitem it);
 
+/* Set item on the position, 0 position is not allowed
+Returns 1 = error, 0 = success.*/
+int CA_set(cirarray ca, CAitem it, int pos);
+
 /* Remove operation using index
 Returns 1 = error, 0 = success */
 int CA_remove_byIndex(cirarray ca, int pos);

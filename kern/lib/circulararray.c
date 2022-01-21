@@ -118,6 +118,18 @@ int CA_add(cirarray ca, CAitem it)
     return pos;
 }
 
+int CA_set(cirarray ca, CAitem it, int pos) 
+{
+
+    if(ca==NULL || it==NULL || pos<=0) 
+        return 1;
+
+    if(pos>ca->curdim)
+        return 1;
+    
+    ca->item[pos]=it;
+    return 0;
+}
 
 CAitem CA_get_byIndex(cirarray ca, int pos)
 {
