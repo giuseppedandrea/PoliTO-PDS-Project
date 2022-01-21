@@ -133,6 +133,7 @@ int procChild_remove(struct proc *proc);
 int proc_fileTable_add(struct proc *proc, int indTable);
 int proc_fileTable_remove(struct proc *proc, int fd);
 int proc_fileTable_get(struct proc *proc, int fd);
+int proc_fileTable_set(struct proc *proc, int fd, int indTable);
 
 #endif
 

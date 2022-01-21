@@ -697,4 +697,9 @@ int proc_fileTable_get(struct proc *proc, int fd)
   return getResult==NULL? -1: *getResult;
 }
 
+int proc_fileTable_set(struct proc *proc, int fd, int indTable)
+{
+  return CA_set(proc->ft, copyInt(&indTable), fd);
+}
+
 #endif

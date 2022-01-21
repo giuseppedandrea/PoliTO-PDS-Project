@@ -16,7 +16,7 @@
 int sys_dup2(int oldfd, int newfd, int *errp)
 {
     fcb fileToCpy, newFile;
-    int indTable;
+    int indTable, result;
 
     if(oldfd<0 || oldfd>OPEN_MAX || newfd<0 || newfd>OPEN_MAX) {
         *errp=EBADF;
@@ -45,14 +45,13 @@ int sys_dup2(int oldfd, int newfd, int *errp)
         *errp = ENFILE;
     else {
         // qui serve una SET nel circulararray. IMplementare di corsa
-        fd=proc_fileTable_add(curproc, indTable); 
-        if(fd==0)
+        result=proc_fileTable_set(curproc, newfd, indTable); 
+        if(result)
         // no free slot in process open file table
             *errp = EMFILE;
         else
-            return fd;     
+            return newfd;     
     }
        
-
-
+    return -1;
 }
