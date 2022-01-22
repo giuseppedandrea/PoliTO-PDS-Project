@@ -466,3 +466,5 @@ optfile shell syscall/open_close.c
 optfile shell syscall/read_write.c
 optfile shell syscall/lseek.c
 optfile shell syscall/dup2.c
+optfile shell syscall/chdir_getcwd.c
+
