@@ -57,7 +57,7 @@ int sys_lseek(int fd, off_t offset, int whence, int *errp)
         break;
     }
 
-    if(calcOff<0 || calcOff>file->size) {
+    if(calcOff<0) {
         *errp=EINVAL;
         lock_release(file->vn_lk);
         return -1;
@@ -66,5 +66,5 @@ int sys_lseek(int fd, off_t offset, int whence, int *errp)
     file->offset=calcOff;
     lock_release(file->vn_lk);
 
-    return calcOff; 
+    return (off_t) calcOff; 
 }

@@ -46,7 +46,7 @@ int sys_dup2(int oldfd, int newfd, int *errp)
     else {
         // qui serve una SET nel circulararray. IMplementare di corsa
         result=proc_fileTable_set(curproc, newfd, indTable); 
-        if(result)
+        if(!result)
         // no free slot in process open file table
             *errp = EMFILE;
         else

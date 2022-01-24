@@ -209,6 +209,7 @@ try_seeking(int fd, off_t pos, off_t cursize)
 	dolseek(fd, pos, SEEK_SET, "SEEK_SET", pos);
 }
 
+
 int
 main(void)
 {
@@ -266,5 +267,6 @@ main(void)
 
 	close(fd);
 	remove(TESTFILE);
+
 	return 0;
 }

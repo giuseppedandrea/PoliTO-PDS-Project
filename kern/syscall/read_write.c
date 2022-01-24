@@ -21,6 +21,9 @@ static int file_write(int fd, userptr_t buf_ptr, size_t size, int* errp) {
   fcb file;
   struct proc *p;
 
+ // struct stat *st=kmalloc(sizeof(struct stat));
+
+
   if(fd<0 || fd>OPEN_MAX) {
       *errp=EBADF;
       return -1;
@@ -61,6 +64,7 @@ static int file_write(int fd, userptr_t buf_ptr, size_t size, int* errp) {
     return -1;
   }
 
+  file->size+=size;
   file->offset=u.uio_offset;
   nwrite=size-u.uio_resid;
 
