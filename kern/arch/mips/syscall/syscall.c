@@ -79,7 +79,8 @@ void
 syscall(struct trapframe *tf)
 {
 	int callno;
-	int32_t retval;
+	int32_t retval, retval2, val1, val2, val3;
+	off_t val_64, retval_64;
 	int err=0;
 
 	KASSERT(curthread != NULL);
@@ -98,6 +99,7 @@ syscall(struct trapframe *tf)
 	 */
 
 	retval = 0;
+	retval2=0; 
 
 	switch (callno) {
 	    case SYS_reboot:
@@ -136,9 +138,23 @@ syscall(struct trapframe *tf)
 
                 break;
 		case SYS_lseek:
-	        retval = sys_lseek((int)tf->tf_a0,
-				(off_t)tf->tf_a1,
-				(int)tf->tf_a2, &err);
+	        {
+
+	    		/* 64-bit arguments are passed in *aligned* pairs of registers, that is, either a0/a1 or a2/a3. This means that
+				* if the first argument is 32-bit and the second is 64-bit, a1 is unused.*/
+				val1=tf->tf_a2;
+				val2=tf->tf_a3;
+				val_64=val1;
+				val_64=val_64 << 32;
+				val_64=val_64 | val2;
+				/* If you run out of registers (which happens quickly with 64-bit values) further arguments must be fetched from the user-level
+				* stack, starting at sp+16 to skip over the slots for the registerized values, with copyin() .*/
+				val3=*(int32_t *) (tf->tf_sp+16);
+
+				retval_64 = sys_lseek((int)tf->tf_a0, val_64, (int)val3, &err);
+				retval=retval_64 << 32;
+				retval2=retval_64 & 0x00000000ffffffff;
+			}
                 break;
 		case SYS_dup2:
 	        retval = sys_dup2((int)tf->tf_a0,
@@ -189,6 +205,9 @@ syscall(struct trapframe *tf)
 	else {
 		/* Success. */
 		tf->tf_v0 = retval;
+		#if OPT_SHELL
+			tf->tf_v1=retval2;
+		#endif
 		tf->tf_a3 = 0;      /* signal no error */
 	}
 

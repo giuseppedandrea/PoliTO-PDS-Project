@@ -20,6 +20,7 @@ static int file_write(int fd, userptr_t buf_ptr, size_t size, int* errp) {
   struct vnode *vn;
   fcb file;
   struct proc *p;
+  struct stat *st=kmalloc(sizeof(struct stat));
 
  // struct stat *st=kmalloc(sizeof(struct stat));
 
@@ -49,7 +50,7 @@ static int file_write(int fd, userptr_t buf_ptr, size_t size, int* errp) {
 
   // try to implement a primitive solution.
   lock_acquire(file->vn_lk);
-  
+
   u.uio_offset=file->offset;
   
   lock_release(file->vn_lk);
@@ -64,7 +65,11 @@ static int file_write(int fd, userptr_t buf_ptr, size_t size, int* errp) {
     return -1;
   }
 
-  file->size+=size;
+  lock_acquire(file->vn_lk);
+  VOP_STAT(file->vn, st);
+  file->size=st->st_size;;
+  lock_release(file->vn_lk);
+
   file->offset=u.uio_offset;
   nwrite=size-u.uio_resid;
 

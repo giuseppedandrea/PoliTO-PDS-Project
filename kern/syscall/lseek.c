@@ -15,7 +15,7 @@
 #include <kern/seek.h>
 
 
-int sys_lseek(int fd, off_t offset, int whence, int *errp)
+off_t sys_lseek(int fd, off_t offset, int whence, int *errp)
 {
     fcb file;
     off_t calcOff;
