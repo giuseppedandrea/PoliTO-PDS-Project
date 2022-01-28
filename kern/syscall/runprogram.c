@@ -106,34 +106,35 @@ runprogram(char *progname)
 
 #if OPT_SHELL
 	int i;
-	vaddr_t *argvptr;
-	size_t len, argvptr_size;
+	vaddr_t *argv_ptrs;
+	size_t len, argv_ptrs_size;
 
 	KASSERT(argc >= 1);
 
 	/* Allocate in the kernel address space a temporary array to store 
 	   argv poiters */
-	argvptr_size = (argc + 1) * sizeof(vaddr_t);
-	argvptr = kmalloc(argvptr_size);
-	if (argvptr == NULL) {
+	argv_ptrs_size = (argc + 1) * sizeof(vaddr_t);
+	argv_ptrs = kmalloc(argv_ptrs_size);
+	if (argv_ptrs == NULL) {
 		return ENOMEM;
 	}
 
 	/* Load the argv strings onto the stack of the user address space */
-	argvptr[argc] = 0;
+	argv_ptrs[argc] = 0;
 	for (i = argc - 1; i >= 0; i--) {
 		len = strlen(argv[i]) + 1;
 		stackptr -= len;
-		argvptr[i] = stackptr;
+		argv_ptrs[i] = stackptr;
 		result = copyout(argv[i], (userptr_t)stackptr, len);
 		if (result) {
+			kfree(argv_ptrs);
 			return result;
 		}
 	}
 
 	/* Adjust the stack pointer to be an address multiple of 8 because
 	   the largest representable data (double) is 8 bytes */
-	stackptr -= argvptr_size;
+	stackptr -= argv_ptrs_size;
 	if (stackptr % 8) {
 		stackptr -= stackptr % 8;
 	}
@@ -141,14 +142,15 @@ runprogram(char *progname)
 	KASSERT((stackptr % 8) == 0);
 
 	/* Load the argv pointers onto the stack of the user address space */
-	result = copyout(argvptr, (userptr_t)stackptr, argvptr_size);
+	result = copyout(argv_ptrs, (userptr_t)stackptr, argv_ptrs_size);
 	if (result) {
+		kfree(argv_ptrs);
 		return result;
 	}
 
 	/* Free the memory allocated in the kernel space for the temporary
 	   array of argv pointers */
-	kfree(argvptr);
+	kfree(argv_ptrs);
 
 	/* Stack layout of the user address space
 	* e.g. `p testbin/add 19 1`
