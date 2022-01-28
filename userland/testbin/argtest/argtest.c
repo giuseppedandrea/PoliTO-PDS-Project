@@ -50,7 +50,7 @@ main(int argc, char *argv[])
 		if (tmp==NULL) {
 			tmp = "[NULL]";
 		}
-		printf("argv[%d]: %s\n", i, tmp);
+		printf("@%p: argv[%d] pointer (%p) -> %s\n", &argv[i], i, argv[i], tmp);
 	}
 
 	return 0;
