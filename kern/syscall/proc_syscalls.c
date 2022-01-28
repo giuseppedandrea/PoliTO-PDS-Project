@@ -98,7 +98,7 @@ pid_t sys_waitpid(pid_t pid, userptr_t statusp, int options, int *errp)
    */
   if ((statusp != NULL)) {
     /*
-     * The statusp argument should be an address multiple of 4 (aligned pointer)
+     * The statusp argument should be an address multiple of 4 (integer alignment)
      * in the address space of the current process.
      */
     if ((((vaddr_t)statusp % 4) != 0) || !as_check_addr(curproc->p_addrspace, (vaddr_t)statusp)) {
@@ -415,10 +415,9 @@ int sys_execv(const char *progname, char **args, int *errp) {
 
   /*
    * Check if the progname argument is an invalid pointer.
-   * The progname argument should be an address multiple of 4 (aligned pointer)
-   * in the address space of the current process.
+   * The progname argument should be in the address space of the current process.
    */
-  if ((progname == NULL) || !as_check_addr(curproc->p_addrspace, (vaddr_t)progname) || (((vaddr_t)progname % 4) != 0)) {
+  if ((progname == NULL) || !as_check_addr(curproc->p_addrspace, (vaddr_t)progname)) {
     *errp = EFAULT;
     return -1;
   }
@@ -432,10 +431,9 @@ int sys_execv(const char *progname, char **args, int *errp) {
 
   /*
    * Check if the args argument is an invalid pointer.
-   * The args argument should be an address multiple of 4 (aligned pointer)
-   * in the address space of the current process.
+   * The args argument should be in the address space of the current process.
    */
-  if ((args == NULL) || !as_check_addr(curproc->p_addrspace, (vaddr_t)args) || (((vaddr_t)args % 4) != 0)) {
+  if ((args == NULL) || !as_check_addr(curproc->p_addrspace, (vaddr_t)args)) {
     *errp = EFAULT;
     return -1;
   }
