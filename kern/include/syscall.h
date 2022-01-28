@@ -75,6 +75,7 @@ void sys__exit(int exitcode);
 pid_t sys_waitpid(pid_t pid, userptr_t statusp, int options, int *errp);
 pid_t sys_getpid(void);
 pid_t sys_fork(struct trapframe *ctf, int *errp);
+int sys_execv(const char *progname, char **args, int *errp);
 #endif
 
 #endif /* _SYSCALL_H_ */
