@@ -39,6 +39,7 @@
 #include <spinlock.h>
 #include <limits.h>
 #include "opt-shell.h"
+#include "circulararray.h"
 
 struct addrspace;
 struct thread;
@@ -80,7 +81,7 @@ struct proc {
   int p_status;                   /* status as obtained by exit() */
   pid_t p_pid;                    /* process pid */
   struct semaphore *p_sem;
-  struct openfile *fileTable[OPEN_MAX];
+  cirarray ft;
 
   // father pid
   pid_t fath_pid;
@@ -129,7 +130,10 @@ void proc_signal_wait(struct proc *proc);
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest);
 int procChild_add(struct proc *fath, struct proc *ch);
 int procChild_remove(struct proc *proc);
-
+int proc_fileTable_add(struct proc *proc, int indTable);
+int proc_fileTable_remove(struct proc *proc, int fd);
+int proc_fileTable_get(struct proc *proc, int fd);
+int proc_fileTable_set(struct proc *proc, int fd, int indTable);
 
 #endif
 

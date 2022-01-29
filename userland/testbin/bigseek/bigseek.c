@@ -209,6 +209,7 @@ try_seeking(int fd, off_t pos, off_t cursize)
 	dolseek(fd, pos, SEEK_SET, "SEEK_SET", pos);
 }
 
+
 int
 main(void)
 {
@@ -225,11 +226,15 @@ main(void)
 	write_slogan(fd, 0, false);
 	cursize = strlen(slogans[0]);
 
+	printf("Cursize: %llu\n", cursize);
+
 	try_seeking(fd, (off_t)0x1000LL, cursize);
 
 	printf("Writing something else\n");
 	write_slogan(fd, 1, false);
 	cursize = (off_t)0x1000LL + strlen(slogans[1]);
+	printf("Cursize: %llu\n", cursize);
+
 
 	try_seeking(fd, (off_t)0, cursize);
 
@@ -266,5 +271,6 @@ main(void)
 
 	close(fd);
 	remove(TESTFILE);
+
 	return 0;
 }

@@ -39,14 +39,7 @@
 #include <spinlock.h>
 
 /* ------------------------------------------------------------- */
-/* G.Cabodi - 2019 - implementing locks and CVs */
-/* option "synch" needed in conf.kern (and enabled!) */
 #include "opt-synch.h" 
-/* 1: implement lock as a binary semaphore (+ pointer to thread) 
- * 0: lock implemented by wait channel
- */
-#define USE_SEMAPHORE_FOR_LOCK 1
-/* ------------------------------------------------------------- */
 
 /*
  * Dijkstra-style semaphore.
@@ -88,11 +81,7 @@ struct lock {
         // add what you need here
         // (don't forget to mark things volatile as needed)
 #if OPT_SYNCH
-#if USE_SEMAPHORE_FOR_LOCK
-	struct semaphore *lk_sem;
-#else
 	struct wchan *lk_wchan;
-#endif
 	struct spinlock lk_lock;
         volatile struct thread *lk_owner;
 #endif

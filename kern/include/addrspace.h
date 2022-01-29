@@ -118,6 +118,9 @@ int               as_prepare_load(struct addrspace *as);
 int               as_complete_load(struct addrspace *as);
 int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
 
+#if OPT_DUMBVM && OPT_SHELL
+bool              as_check_addr(struct addrspace *as, vaddr_t vaddr);
+#endif
 
 /*
  * Functions in loadelf.c

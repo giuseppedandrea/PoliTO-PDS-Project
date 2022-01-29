@@ -49,7 +49,7 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <syscall.h>
-
+#include "item.h"
 #include <synch.h>
 #include <limits.h>
 
@@ -78,12 +78,48 @@ static struct _processTable {
 
 #define _PROCTABLE_proc(pid) (processTable.proc[pid])
 
-struct _children{
+struct _children {
   pid_t *p_ch;
   int n_ch;
   int last_ch; 
 }; 
 
+/* Creating file table of single process */
+static int proc_fileTable_create(struct proc *proc)
+{
+  CAoperations ops;
+  int *stdin, *stdout, *stderr;
+
+  if(proc==NULL)
+    return 1;
+  
+  ops.newItem=newInt;
+  ops.cmpItem=cmpInt;
+  ops.freeItem=freeInt;
+  ops.copyItem=copyInt;
+  ops.getItemKey=getIntKey;
+  ops.coutItem=coutInt;
+
+  proc->ft=CA_create(OPEN_MAX, ops);
+  if(proc->ft==NULL)
+    return 1;
+  
+  stdin=newInt();
+  stdout=newInt();
+  stderr=newInt();
+
+  CA_add(proc->ft, stdin);
+  CA_add(proc->ft, stdout);
+  CA_add(proc->ft, stderr);
+
+  return 0;
+}
+
+/* Destroy file table of single process  */
+static int proc_fileTable_destroy(struct proc *proc)
+{
+  return CA_destroy(proc->ft);
+}
 
 struct proc *proc_search_pid(pid_t pid) {
       struct proc *p;
@@ -194,7 +230,7 @@ static int procChildren_create(struct proc *p)
       if(p==NULL)
         return 1; // error on passing process
 
-      p->ch_pid=(struct _children *) kmalloc(sizeof(*p->ch_pid));
+      p->ch_pid=(struct _children *) kmalloc(sizeof(*(p->ch_pid)));
       p->ch_pid->p_ch=(pid_t *) kmalloc(dim*sizeof(pid_t));
       p->ch_pid->n_ch=dim;
       p->ch_pid->last_ch=0;
@@ -206,6 +242,7 @@ static int procChildren_create(struct proc *p)
 
       return 0;
 }
+
 
 #endif
 
@@ -248,11 +285,16 @@ static struct proc *proc_create(const char *name)
           if(procChildren_create(proc))
             return NULL; // allocation problem          
           
+          if(proc_fileTable_create(proc))
+            return NULL; // allocation problem
         }
+      
+      if(proc_fileTable_create(proc))
+        return NULL;
+      
+
 #endif
-#if OPT_FILE
-      bzero(proc->fileTable,OPEN_MAX*sizeof(struct openfile *));
-#endif
+
       return proc;
 }
 
@@ -341,10 +383,11 @@ void proc_destroy(struct proc *proc)
       processTable_remove(proc);
       procChild_remove(proc);
 
+      proc_fileTable_destroy(proc);
+
       kfree(proc->p_name);
       kfree(proc);
 }
-
 /*
  * Create the process structure for the kernel.
  */
@@ -364,6 +407,7 @@ void proc_bootstrap(void)
       
 
       processTable.active = 1;
+
 #endif
 
 
@@ -529,14 +573,16 @@ int proc_wait(struct proc *proc)
 #if OPT_FILE
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest) {
       int fd;
+      fcb file;
 
-      for (fd=0; fd<OPEN_MAX; fd++) {
-        struct openfile *of = psrc->fileTable[fd];
+      pdest->ft=CA_duplicate(psrc->ft);
+      for (fd=0; fd<CA_size(psrc->ft); fd++) {
+        file=sys_fileTable_get(proc_fileTable_get(psrc, fd));
 
-        pdest->fileTable[fd] = of;
-        if (of != NULL) {
+        if (file != NULL) {
           /* incr reference count */
-          openfileIncrRefCount(of);
+          openfileIncrRefCount(file);
+          fd--;
         }
       }
 }
@@ -628,5 +674,50 @@ void proc_signal_end(struct proc *proc)
 }
 
 
+
+/* Adding on file table file descriptor of system file table */
+int proc_fileTable_add(struct proc *proc, int indTable)
+{
+  int result;
+
+  spinlock_acquire(&(proc->p_lock));
+  result=CA_add(proc->ft, copyInt(&indTable));
+  spinlock_release(&(proc->p_lock));
+  return result;
+}
+
+/* Remove on file table file descriptor of system file table*/
+int proc_fileTable_remove(struct proc *proc, int fd)
+{
+  int result;
+
+  spinlock_acquire(&(proc->p_lock));
+  result=CA_remove_byIndex(proc->ft, fd);
+  spinlock_release(&(proc->p_lock));
+
+  return result;
+}
+
+int proc_fileTable_get(struct proc *proc, int fd)
+{
+  int *getResult;
+  if(proc==NULL || fd<0)
+    return -1;
+
+  getResult=CA_get_byIndex(proc->ft, fd);
+
+  return getResult==NULL? -1: *getResult;
+}
+
+int proc_fileTable_set(struct proc *proc, int fd, int indTable)
+{
+  int result;
+
+  spinlock_acquire(&(proc->p_lock));
+  result=CA_set(proc->ft, copyInt(&indTable), fd);
+  spinlock_release(&(proc->p_lock));
+
+  return result;
+}
 
 #endif
