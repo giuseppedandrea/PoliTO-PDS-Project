@@ -12,6 +12,8 @@
 #include <uio.h>
 #include <proc.h>
 #include "item.h"
+#include <kern/fcntl.h>
+
 
 static int file_write(int fd, userptr_t buf_ptr, size_t size, int* errp) {
   struct iovec iov;
@@ -22,18 +24,20 @@ static int file_write(int fd, userptr_t buf_ptr, size_t size, int* errp) {
   struct proc *p;
   struct stat *st=kmalloc(sizeof(struct stat));
 
- // struct stat *st=kmalloc(sizeof(struct stat));
-
-
   if(fd<0 || fd>OPEN_MAX) {
       *errp=EBADF;
       return -1;
   }
 
+  if(buf_ptr==NULL || !as_check_addr(curproc->p_addrspace, (vaddr_t)buf_ptr)) {
+        *errp=EFAULT;
+        return -1;
+  }
+
   p=curproc;
 
   file=sys_fileTable_get(proc_fileTable_get(p, fd));
-  if(file==NULL) 
+  if(file==NULL || file->flag == O_RDONLY) 
   {
     *errp=EBADF;
     return -1;
@@ -100,22 +104,32 @@ static int file_read(int fd, userptr_t buf_ptr, size_t size, int *errp) {
   fcb file;
   struct proc *p;
   int nread;
+  struct stat st;
 
   if(fd<0 || fd>OPEN_MAX) {
       *errp=EBADF;
       return -1;
   }
 
+  if(buf_ptr==NULL || !as_check_addr(curproc->p_addrspace, (vaddr_t)buf_ptr)) {
+        *errp=EFAULT;
+        return -1;
+  }
+
   p=curproc;
 
   file=sys_fileTable_get(proc_fileTable_get(p, fd));
-  if(file==NULL) 
+  if(file==NULL || file->flag == O_WRONLY) 
   {
     *errp=EBADF;
     return -1;
   }
 
   vn=file->vn;
+  VOP_STAT(vn, &st);
+
+
+
   
   iov.iov_ubase=buf_ptr;
   iov.iov_len=size;
@@ -144,6 +158,7 @@ int sys_read(int fd, userptr_t buf_ptr, size_t size,  int *errp)
 {  
   int i;
   char *buff=(char *) buf_ptr;
+
 
   if (fd!=STDIN_FILENO) {
     return file_read(fd, buf_ptr, size, errp);

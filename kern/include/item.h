@@ -18,11 +18,12 @@
 
 /* FCB operations */
 CAitem newFCB(void);
-CAitem newFCB_filled(struct vnode *v, off_t offset, unsigned int countRef, struct lock *vn_lk);
+CAitem newFCB_filled(struct vnode *v, off_t offset, unsigned int countRef, int flag, struct lock *vn_lk);
 int cmpFCB(CAkey a , CAkey b);
 void freeFCB(CAitem a);
 CAitem copyFCB(CAitem source);
 CAkey getFCBKey(CAitem source);
+void coutFCB(CAitem source);
 
 /* int operations */
 CAitem newInt(void);
@@ -30,6 +31,7 @@ int cmpInt(CAkey a , CAkey b);
 void freeInt(CAitem a);
 CAitem copyInt(CAitem source);
 CAkey getIntKey(CAitem source);
+void coutInt(CAitem source); 
 
 #endif
 

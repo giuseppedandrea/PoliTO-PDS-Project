@@ -79,7 +79,9 @@ void
 syscall(struct trapframe *tf)
 {
 	int callno;
-	int32_t retval, retval2, val1, val2, val3;
+	int32_t retval, retval2, val3;
+	uint32_t val1, val2;
+	
 	off_t val_64, retval_64;
 	int err=0;
 
@@ -152,7 +154,7 @@ syscall(struct trapframe *tf)
 				val3=*(int32_t *) (tf->tf_sp+16);
 
 				retval_64 = sys_lseek((int)tf->tf_a0, val_64, (int)val3, &err);
-				retval=retval_64 << 32;
+				retval=(retval_64  & 0xffffffff00000000) >> 32;
 				retval2=retval_64 & 0x00000000ffffffff;
 			}
                 break;
@@ -164,6 +166,10 @@ syscall(struct trapframe *tf)
 	        retval = sys_chdir((const char *)tf->tf_a0,
 				&err);
                 break;
+		case SYS___getcwd:
+	        retval = sys___getcwd((char *)tf->tf_a0, (size_t) tf->tf_a1,
+				&err);
+                break;		
 	    case SYS__exit:
 	        /* TODO: just avoid crash */
  	        sys__exit((int)tf->tf_a0);

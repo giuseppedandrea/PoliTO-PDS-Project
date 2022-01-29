@@ -248,10 +248,13 @@ int CA_stamp(cirarray ca)
     if(ca==NULL)
         return 1;
 
+    kprintf("Database:\n");
     for(i=1; i<ca->curdim; i++)
         if(ca->item[i]!=NULL)
-            ca->ops.coutItem(ca->item[i]);
-
+            {
+                kprintf("POS[%d]= ", i);    
+                ca->ops.coutItem(ca->item[i]);
+            }
     return 0;
 }
 

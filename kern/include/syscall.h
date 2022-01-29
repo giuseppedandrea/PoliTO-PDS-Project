@@ -73,6 +73,7 @@ int sys_write(int fd, userptr_t buf_ptr, size_t size, int *errp);
 int sys_read(int fd, userptr_t buf_ptr, size_t size,  int *errp);
 off_t sys_lseek(int fd, off_t offset, int whence, int *errp);
 int sys_chdir(const char *pathname, int *errp);
+int sys___getcwd(char *ptr, size_t bufflen, int *errp);
 int sys_dup2(int oldfd, int newfd, int *errp);
 void sys__exit(int status);
 int sys_waitpid(pid_t pid, userptr_t statusp, int options);

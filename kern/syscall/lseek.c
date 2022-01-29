@@ -31,13 +31,18 @@ off_t sys_lseek(int fd, off_t offset, int whence, int *errp)
     }
 
     file=sys_fileTable_get(proc_fileTable_get(curproc, fd));
-  
     if(file==NULL) {
         *errp=EBADF;
         return -1;
     }
 
+    if(!VOP_ISSEEKABLE(file->vn)) {
+        *errp=ESPIPE;
+        return -1;
+    }
+
     lock_acquire(file->vn_lk);
+
     switch (whence)
     {
         case SEEK_SET:

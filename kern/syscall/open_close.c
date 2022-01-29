@@ -12,6 +12,7 @@
 #include <uio.h>
 #include <proc.h>
 #include "item.h"
+#include <kern/fcntl.h>
 
 
 /*
@@ -27,7 +28,7 @@ int sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
 
   p=curproc;
 
-  if((char *) path == NULL)
+  if(path==NULL || !as_check_addr(curproc->p_addrspace, (vaddr_t)path))
   {
     *errp=EFAULT;
     return -1;
@@ -39,7 +40,7 @@ int sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
     return -1;
   }
 
-  newFile=newFCB_filled(v, 0, 1, lock_create("lock_file"));
+  newFile=newFCB_filled(v, 0, 1, openflags & O_ACCMODE, lock_create("lock_file"));
 
   // funzione ritorna indice del vnode nella tabella di sistema oppure errore
   indTable=sys_fileTable_add(newFile);

@@ -98,6 +98,7 @@ static int proc_fileTable_create(struct proc *proc)
   ops.freeItem=freeInt;
   ops.copyItem=copyInt;
   ops.getItemKey=getIntKey;
+  ops.coutItem=coutInt;
 
   proc->ft=CA_create(OPEN_MAX, ops);
   if(proc->ft==NULL)
@@ -677,13 +678,24 @@ void proc_signal_end(struct proc *proc)
 /* Adding on file table file descriptor of system file table */
 int proc_fileTable_add(struct proc *proc, int indTable)
 {
-  return CA_add(proc->ft, copyInt(&indTable));
+  int result;
+
+  spinlock_acquire(&(proc->p_lock));
+  result=CA_add(proc->ft, copyInt(&indTable));
+  spinlock_release(&(proc->p_lock));
+  return result;
 }
 
 /* Remove on file table file descriptor of system file table*/
 int proc_fileTable_remove(struct proc *proc, int fd)
 {
-  return CA_remove_byIndex(proc->ft, fd);
+  int result;
+
+  spinlock_acquire(&(proc->p_lock));
+  result=CA_remove_byIndex(proc->ft, fd);
+  spinlock_release(&(proc->p_lock));
+
+  return result;
 }
 
 int proc_fileTable_get(struct proc *proc, int fd)
@@ -699,7 +711,13 @@ int proc_fileTable_get(struct proc *proc, int fd)
 
 int proc_fileTable_set(struct proc *proc, int fd, int indTable)
 {
-  return CA_set(proc->ft, copyInt(&indTable), fd);
+  int result;
+
+  spinlock_acquire(&(proc->p_lock));
+  result=CA_set(proc->ft, copyInt(&indTable), fd);
+  spinlock_release(&(proc->p_lock));
+
+  return result;
 }
 
 #endif

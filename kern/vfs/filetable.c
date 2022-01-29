@@ -21,12 +21,14 @@
 #include "opt-shell.h"
 #include "circulararray.h"
 #include "item.h"
-
+#include <spinlock.h>
 // OPEN_MAX come limite massimo di file aperti per processo. Sono 128
 
 
 
 static cirarray system_openTable; 
+static struct lock *sys_openTable_lk;
+
 
 
 void openfileIncrRefCount(fcb file) {
@@ -44,21 +46,34 @@ void sys_fileTable_bootstrap(void)
     ops.freeItem=freeFCB;
     ops.getItemKey=getFCBKey;
     ops.copyItem=copyFCB;
+    ops.coutItem=coutFCB;
 
     system_openTable=CA_create(OPEN_MAX*100, ops);
+    sys_openTable_lk=lock_create("sysOpenTable_lk");
 }
 
 int sys_fileTable_add(fcb file)
 {
+    int result;
     if(file==NULL)
         return 0;
-        
-    return CA_add(system_openTable, file);
+
+    lock_acquire(sys_openTable_lk);
+    result=CA_add(system_openTable, file);
+    lock_release(sys_openTable_lk);    
+
+    return result;
 }
 
 int sys_fileTable_remove(int ind)
 {
-    return CA_remove_byIndex(system_openTable, ind);
+    int result; 
+    
+    lock_acquire(sys_openTable_lk);    
+    result=CA_remove_byIndex(system_openTable, ind);
+    lock_release(sys_openTable_lk);   
+
+    return result;
 }
 
 fcb sys_fileTable_get(int ind)

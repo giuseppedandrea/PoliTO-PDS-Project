@@ -4,10 +4,11 @@ CAitem newFCB(void)
 {
     fcb new=kmalloc(sizeof(*new));
     bzero(new, sizeof(*new));
+
     return new==NULL? NULL:new;
 }
 
-CAitem newFCB_filled(struct vnode *v, off_t offset, unsigned int countRef, struct lock *vn_lk)
+CAitem newFCB_filled(struct vnode *v, off_t offset, unsigned int countRef, int flag, struct lock *vn_lk)
 {
     struct stat *st=kmalloc(sizeof(struct stat));
     fcb new=kmalloc(sizeof(*new));
@@ -23,6 +24,7 @@ CAitem newFCB_filled(struct vnode *v, off_t offset, unsigned int countRef, struc
     new->vn_lk=vn_lk;
     new->countRef=countRef;
     new->size=st->st_size;
+    new->flag=flag;
 
     return new;
 }
@@ -42,7 +44,8 @@ void freeFCB(CAitem a)
 
     vfs_close(source->vn);
     lock_destroy((source->vn_lk));
-    kfree(a);
+    kfree(source);
+    source=NULL;
 }
 
 CAitem copyFCB(CAitem source)
@@ -66,10 +69,19 @@ CAkey getFCBKey(CAitem source)
     return a->vn;
 }
 
+void 
+coutFCB(CAitem source)
+{
+    fcb src=(fcb) source;
+    kprintf("vn=%p size=%llx offset=%llx countRef=%d lock=%p \n", src->vn, src->size, src->offset, src->countRef, src->vn_lk);
+}
+
+
 CAitem newInt(void)
 {
     int *new=kmalloc(sizeof(int));
     bzero(new, sizeof(int));
+    *new=0;
 
     return new;
 }
@@ -96,4 +108,10 @@ CAitem copyInt(CAitem source)
 CAkey getIntKey(CAitem source)
 {
     return source;
+}
+
+void coutInt(CAitem source)
+{
+    int *src=(int *)source;
+    kprintf("int=%d", *src);
 }

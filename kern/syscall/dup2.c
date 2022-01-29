@@ -18,7 +18,7 @@ int sys_dup2(int oldfd, int newfd, int *errp)
     fcb fileToCpy, newFile;
     int indTable, result;
 
-    if(oldfd<0 || oldfd>OPEN_MAX || newfd<0 || newfd>OPEN_MAX) {
+    if(oldfd<0 || oldfd>OPEN_MAX || newfd<0 || newfd>OPEN_MAX || oldfd==newfd) {
         *errp=EBADF;
         return -1;
     }
@@ -32,10 +32,8 @@ int sys_dup2(int oldfd, int newfd, int *errp)
     newFile=sys_fileTable_get(proc_fileTable_get(curproc, newfd));
     if(newFile!=NULL)
     {
-        if(sys_close(newfd, errp)!=0) {
-            *errp=EBADF;
-            return -1;
-        }
+        sys_fileTable_remove(proc_fileTable_get(curproc, newfd));
+        proc_fileTable_remove(curproc, newfd);
         freeFCB(newFile);
     }
 
@@ -43,15 +41,17 @@ int sys_dup2(int oldfd, int newfd, int *errp)
     indTable=sys_fileTable_add(newFile);
     if(indTable==0)
         *errp = ENFILE;
-    else {
-        // qui serve una SET nel circulararray. IMplementare di corsa
-        result=proc_fileTable_set(curproc, newfd, indTable); 
-        if(!result)
-        // no free slot in process open file table
+    else 
+    {
+        result=proc_fileTable_set(curproc, indTable, newfd); 
+        if(result)
+            // no free slot in process open file table
             *errp = EMFILE;
-        else
-            return newfd;     
+        else 
+        {
+            return newfd;
+        }     
     }
-       
+    
     return -1;
 }

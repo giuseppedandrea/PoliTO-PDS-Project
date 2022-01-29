@@ -13,7 +13,8 @@ struct _file
 {
     struct vnode *vn;
     off_t size;
-    off_t offset; 
+    off_t offset;
+    int flag; 
     unsigned int countRef;
     struct lock *vn_lk;
     
