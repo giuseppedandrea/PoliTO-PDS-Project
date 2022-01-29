@@ -549,11 +549,13 @@ int proc_create_runprogram(const char *name, struct proc **retproc)
       }
       spinlock_release(&curproc->p_lock);
 
+#if OPT_SHELL
       /* Link child process to its parent, so that child terminates on parent exit */
       result = proc_children_add(curproc, newproc);
       if(result){
         return result;
       }
+#endif
 
       *retproc = newproc;
 
