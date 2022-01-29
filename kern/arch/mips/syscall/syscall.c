@@ -79,10 +79,12 @@ void
 syscall(struct trapframe *tf)
 {
 	int callno;
-	int32_t retval, retval2, val3;
+	int32_t retval;
+#if OPT_SHELL
+	int32_t retval2, val3;
 	uint32_t val1, val2;
-	
 	off_t val_64, retval_64;
+#endif
 	int err=0;
 
 	KASSERT(curthread != NULL);
@@ -101,7 +103,9 @@ syscall(struct trapframe *tf)
 	 */
 
 	retval = 0;
-	retval2=0; 
+#if OPT_SHELL
+	retval2 = 0;
+#endif
 
 	switch (callno) {
 	    case SYS_reboot:
@@ -206,9 +210,9 @@ syscall(struct trapframe *tf)
 	else {
 		/* Success. */
 		tf->tf_v0 = retval;
-		#if OPT_SHELL
-			tf->tf_v1=retval2;
-		#endif
+#if OPT_SHELL
+		tf->tf_v1 = retval2;
+#endif
 		tf->tf_a3 = 0;      /* signal no error */
 	}
 
