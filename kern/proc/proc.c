@@ -284,7 +284,7 @@ static int proc_fileTable_create(struct proc *proc)
   int *stdin, *stdout, *stderr;
 
   KASSERT(proc != NULL);
-  
+
   ops.newItem=newInt;
   ops.cmpItem=cmpInt;
   ops.freeItem=freeInt;
@@ -295,7 +295,7 @@ static int proc_fileTable_create(struct proc *proc)
   proc->ft=CA_create(OPEN_MAX, ops);
   if(proc->ft==NULL)
     return ENOMEM;
-  
+
   stdin=newInt();
   stdout=newInt();
   stderr=newInt();
@@ -746,7 +746,10 @@ void proc_signal(struct proc *proc) {
       }
 }
 
-void proc_file_table_copy(struct proc *psrc, struct proc *pdest)
+/*
+ * Copy file table from a process to another process.
+ */
+void proc_fileTable_copy(struct proc *psrc, struct proc *pdest)
 {
       int fd;
       fcb file;
@@ -763,7 +766,9 @@ void proc_file_table_copy(struct proc *psrc, struct proc *pdest)
       }
 }
 
-/* Adding on file table file descriptor of system file table */
+/*
+ * Add on file table file descriptor of system file table.
+ */
 int proc_fileTable_add(struct proc *proc, int indTable)
 {
   int result;
@@ -774,7 +779,9 @@ int proc_fileTable_add(struct proc *proc, int indTable)
   return result;
 }
 
-/* Remove on file table file descriptor of system file table*/
+/*
+ * Remove on file table file descriptor of system file table.
+ */
 int proc_fileTable_remove(struct proc *proc, int fd)
 {
   int result;
@@ -786,6 +793,9 @@ int proc_fileTable_remove(struct proc *proc, int fd)
   return result;
 }
 
+/*
+ * Get on file table file descriptor of system file table.
+ */
 int proc_fileTable_get(struct proc *proc, int fd)
 {
   int *getResult;
@@ -797,6 +807,9 @@ int proc_fileTable_get(struct proc *proc, int fd)
   return getResult==NULL? -1: *getResult;
 }
 
+/*
+ * Set on file table file descriptor of system file table.
+ */
 int proc_fileTable_set(struct proc *proc, int fd, int indTable)
 {
   int result;

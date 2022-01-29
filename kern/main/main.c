@@ -108,9 +108,9 @@ static void boot(void)
 	proc_bootstrap();
 	thread_bootstrap();
 	hardclock_bootstrap();
-	#if OPT_SHELL
-		sys_fileTable_bootstrap();
-	#endif
+#if OPT_SHELL
+	sys_fileTable_bootstrap();
+#endif
 	vfs_bootstrap();
 
 	kheap_nextgeneration();

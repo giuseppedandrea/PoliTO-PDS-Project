@@ -442,17 +442,6 @@ file		test/kmalloctest.c
 file		test/fstest.c
 optfile net	test/nettest.c
 
-
-defoption syscalls
-#optfile syscalls syscall/file_syscalls.c
-optfile syscalls syscall/proc_syscalls.c
-
-defoption file
-
-defoption fork
-
-defoption waitpid
-
 defoption synch
 
 defoption shell
@@ -467,4 +456,8 @@ optfile shell syscall/read_write.c
 optfile shell syscall/lseek.c
 optfile shell syscall/dup2.c
 optfile shell syscall/chdir_getcwd.c
-
+optfile shell syscall/_exit.c
+optfile shell syscall/getpid.c
+optfile shell syscall/waitpid.c
+optfile shell syscall/fork.c
+optfile shell syscall/execv.c

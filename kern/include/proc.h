@@ -82,7 +82,7 @@ struct proc {
   pid_t p_parent_pid;             /* parent process ID (pid) */
   pid_t p_pid;                    /* process ID (pid) */
   list p_children;                /* list of child processes */
-  cirarray ft;
+  cirarray ft;                    /* process file table */
   struct semaphore *p_sem;        /* semaphore used for waitpid */
 #endif
 };
@@ -114,17 +114,21 @@ struct addrspace *proc_setas(struct addrspace *);
 
 
 #if OPT_SHELL
+/* Search for a process by pid in the Process Table */
+int proc_table_search(pid_t pid, struct proc **retproc);
 /* Wait for process termination, destroy the process, and return exit status */
 int proc_wait(struct proc *proc);
-/* Signal end/exit of process */
+/* Signal for process termination */
 void proc_signal(struct proc *proc);
-/* Get proc from pid */
-int proc_table_search(pid_t pid, struct proc **retproc);
 /* Copy file table from a process to another process */
-void proc_file_table_copy(struct proc *psrc, struct proc *pdest);
+void proc_fileTable_copy(struct proc *psrc, struct proc *pdest);
+/* Add on file table file descriptor of system file table */
 int proc_fileTable_add(struct proc *proc, int indTable);
+/* Remove on file table file descriptor of system file table*/
 int proc_fileTable_remove(struct proc *proc, int fd);
+/* Get on file table file descriptor of system file table*/
 int proc_fileTable_get(struct proc *proc, int fd);
+/* Set on file table file descriptor of system file table*/
 int proc_fileTable_set(struct proc *proc, int fd, int indTable);
 #endif
 
