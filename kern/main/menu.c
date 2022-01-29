@@ -31,6 +31,7 @@
 #include <kern/errno.h>
 #include <kern/reboot.h>
 #include <kern/unistd.h>
+#include <kern/wait.h>
 #include <limits.h>
 #include <lib.h>
 #include <uio.h>
@@ -53,6 +54,33 @@
 #define _PATH_SHELL "/bin/sh"
 
 #define MAXMENUARGS  16
+
+#if OPT_SHELL
+/*
+ * printstatus
+ * print results from wait
+ */
+static
+void
+printstatus(int status)
+{
+	if (WIFEXITED(status)) {
+		kprintf("Exit %d\n",  WEXITSTATUS(status));
+	}
+	else if (WIFSIGNALED(status) && WCOREDUMP(status)) {
+		kprintf("Signal %d (core dumped)\n", WTERMSIG(status));
+	}
+	else if (WIFSIGNALED(status)) {
+		kprintf("Signal %d\n", WTERMSIG(status));
+	}
+	else if (WIFSTOPPED(status)) {
+		kprintf("Stopped on signal %d\n", WSTOPSIG(status));
+	}
+	else {
+		kprintf("Invalid status code %d", status);
+	}
+}
+#endif
 
 ////////////////////////////////////////////////////////////
 //
@@ -141,7 +169,7 @@ common_prog(int nargs, char **args)
 
 #if OPT_SHELL
 	result = proc_wait(proc);
-	kprintf("[process exited with code %d]\n", result);
+	printstatus(result);
 #endif
 
 	return 0;
