@@ -283,8 +283,7 @@ static int proc_fileTable_create(struct proc *proc)
   CAoperations ops;
   int *stdin, *stdout, *stderr;
 
-  if(proc==NULL)
-    return 1;
+  KASSERT(proc != NULL);
   
   ops.newItem=newInt;
   ops.cmpItem=cmpInt;
@@ -295,7 +294,7 @@ static int proc_fileTable_create(struct proc *proc)
 
   proc->ft=CA_create(OPEN_MAX, ops);
   if(proc->ft==NULL)
-    return 1;
+    return ENOMEM;
   
   stdin=newInt();
   stdout=newInt();
@@ -313,6 +312,8 @@ static int proc_fileTable_create(struct proc *proc)
  */
 static int proc_fileTable_destroy(struct proc *proc)
 {
+  KASSERT(proc != NULL);
+
   return CA_destroy(proc->ft);
 }
 #endif
@@ -377,11 +378,18 @@ static int proc_create(const char *name, struct proc **retproc)
         }
       }
 
-      if(proc_fileTable_create(proc))
-        return 1;  
+      result = proc_fileTable_create(proc);
+      if (result) {
+        proc_table_remove(proc);
+        proc_children_destroy(proc);
+        kfree(proc->p_name);
+        kfree(proc);
+        return result;
+      }
 
       proc->p_sem = sem_create(name, 0);
       if (proc->p_sem == NULL) {
+        proc_fileTable_destroy(proc);
         proc_table_remove(proc);
         proc_children_destroy(proc);
         kfree(proc->p_name);
