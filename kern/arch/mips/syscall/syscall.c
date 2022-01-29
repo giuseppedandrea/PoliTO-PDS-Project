@@ -79,7 +79,10 @@ void
 syscall(struct trapframe *tf)
 {
 	int callno;
-	int32_t retval;
+	int32_t retval, retval2, val3;
+	uint32_t val1, val2;
+	
+	off_t val_64, retval_64;
 	int err=0;
 
 	KASSERT(curthread != NULL);
@@ -98,6 +101,7 @@ syscall(struct trapframe *tf)
 	 */
 
 	retval = 0;
+	retval2=0; 
 
 	switch (callno) {
 	    case SYS_reboot:
@@ -110,37 +114,62 @@ syscall(struct trapframe *tf)
 		break;
 
 	    /* Add stuff here */
-#if OPT_SYSCALLS
-#if OPT_FILE
+#if OPT_SHELL
 	    case SYS_open:
 	        retval = sys_open((userptr_t)tf->tf_a0,
 				  (int)tf->tf_a1,
 				  (mode_t)tf->tf_a2, &err);
                 break;
 	    case SYS_close:
-	        retval = sys_close((int)tf->tf_a0);
-		if (retval<0) err = ENOENT; 
+	        retval = sys_close((int)tf->tf_a0, &err);
                 break;
             case SYS_remove:
 	      /* just ignore: do nothing */
 	        retval = 0;
                 break;
-#endif
 	    case SYS_write:
 	        retval = sys_write((int)tf->tf_a0,
 				(userptr_t)tf->tf_a1,
-				(size_t)tf->tf_a2);
-		/* error: function not implemented */
-                if (retval<0) err = ENOSYS; 
-		else err = 0;
+				(size_t)tf->tf_a2, &err);
+
                 break;
 	    case SYS_read:
 	        retval = sys_read((int)tf->tf_a0,
 				(userptr_t)tf->tf_a1,
-				(size_t)tf->tf_a2);
-                if (retval<0) err = ENOSYS; 
-		else err = 0;
+				(size_t)tf->tf_a2, &err);
+
                 break;
+		case SYS_lseek:
+	        {
+
+	    		/* 64-bit arguments are passed in *aligned* pairs of registers, that is, either a0/a1 or a2/a3. This means that
+				* if the first argument is 32-bit and the second is 64-bit, a1 is unused.*/
+				val1=tf->tf_a2;
+				val2=tf->tf_a3;
+				val_64=val1;
+				val_64=val_64 << 32;
+				val_64=val_64 | val2;
+				/* If you run out of registers (which happens quickly with 64-bit values) further arguments must be fetched from the user-level
+				* stack, starting at sp+16 to skip over the slots for the registerized values, with copyin() .*/
+				val3=*(int32_t *) (tf->tf_sp+16);
+
+				retval_64 = sys_lseek((int)tf->tf_a0, val_64, (int)val3, &err);
+				retval=(retval_64  & 0xffffffff00000000) >> 32;
+				retval2=retval_64 & 0x00000000ffffffff;
+			}
+                break;
+		case SYS_dup2:
+	        retval = sys_dup2((int)tf->tf_a0,
+				(int)tf->tf_a1, &err);
+                break;
+		case SYS_chdir:
+	        retval = sys_chdir((const char *)tf->tf_a0,
+				&err);
+                break;
+		case SYS___getcwd:
+	        retval = sys___getcwd((char *)tf->tf_a0, (size_t) tf->tf_a1,
+				&err);
+                break;		
 	    case SYS__exit:
             sys__exit((int)tf->tf_a0);
             break;
@@ -177,6 +206,9 @@ syscall(struct trapframe *tf)
 	else {
 		/* Success. */
 		tf->tf_v0 = retval;
+		#if OPT_SHELL
+			tf->tf_v1=retval2;
+		#endif
 		tf->tf_a3 = 0;      /* signal no error */
 	}
 

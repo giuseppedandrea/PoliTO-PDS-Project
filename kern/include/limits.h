@@ -48,5 +48,6 @@
 #define LOGIN_NAME_MAX  __LOGIN_NAME_MAX
 #define OPEN_MAX        __OPEN_MAX
 #define IOV_MAX         __IOV_MAX
+#define MAX_OPEN_TABLE  __MAX_OPEN_TABLE
 
 #endif /* _LIMITS_H_ */

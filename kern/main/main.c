@@ -50,8 +50,8 @@
 #include <test.h>
 #include <version.h>
 #include "autoconf.h"  // for pseudoconfig
-
-
+#include "filetable.h"
+#include "opt-shell.h"
 /*
  * These two pieces of data are maintained by the makefiles and build system.
  * buildconfig is the name of the config file the kernel was configured with.
@@ -108,7 +108,11 @@ static void boot(void)
 	proc_bootstrap();
 	thread_bootstrap();
 	hardclock_bootstrap();
+	#if OPT_SHELL
+		sys_fileTable_bootstrap();
+	#endif
 	vfs_bootstrap();
+
 	kheap_nextgeneration();
 
 	/* Probe and initialize devices. Interrupts should come on. */
@@ -203,6 +207,7 @@ int sys_reboot(int code)
 void kmain(char *arguments)
 {
 	boot();
+	
 
 	menu(arguments);
 

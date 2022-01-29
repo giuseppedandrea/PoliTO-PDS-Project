@@ -106,4 +106,6 @@
 #define __IOV_MAX       1024
 
 
+#define __MAX_OPEN_TABLE 10*__OPEN_MAX
+
 #endif /* _KERN_LIMITS_H_ */

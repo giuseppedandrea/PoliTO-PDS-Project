@@ -40,6 +40,7 @@
 #include <limits.h>
 #include <list.h>
 #include "opt-shell.h"
+#include "circulararray.h"
 
 struct addrspace;
 struct thread;
@@ -81,8 +82,8 @@ struct proc {
   pid_t p_parent_pid;             /* parent process ID (pid) */
   pid_t p_pid;                    /* process ID (pid) */
   list p_children;                /* list of child processes */
+  cirarray ft;
   struct semaphore *p_sem;        /* semaphore used for waitpid */
-  struct openfile *fileTable[OPEN_MAX];
 #endif
 };
 
@@ -121,6 +122,10 @@ void proc_signal(struct proc *proc);
 int proc_table_search(pid_t pid, struct proc **retproc);
 /* Copy file table from a process to another process */
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest);
+int proc_fileTable_add(struct proc *proc, int indTable);
+int proc_fileTable_remove(struct proc *proc, int fd);
+int proc_fileTable_get(struct proc *proc, int fd);
+int proc_fileTable_set(struct proc *proc, int fd, int indTable);
 #endif
 
 

@@ -50,7 +50,7 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <syscall.h>
-
+#include "item.h"
 #include <synch.h>
 #include <limits.h>
 
@@ -274,6 +274,47 @@ static void proc_children_remove(struct proc *proc)
       pchild = list_deleteByKey(pparent->p_children, &(proc->p_pid), (unsigned char *)(&(proc->p_pid)) - (unsigned char *)proc, sizeof(proc->p_pid));
       KASSERT(proc == pchild);
 }
+
+/*
+ * Creating file table of single process.
+ */
+static int proc_fileTable_create(struct proc *proc)
+{
+  CAoperations ops;
+  int *stdin, *stdout, *stderr;
+
+  if(proc==NULL)
+    return 1;
+  
+  ops.newItem=newInt;
+  ops.cmpItem=cmpInt;
+  ops.freeItem=freeInt;
+  ops.copyItem=copyInt;
+  ops.getItemKey=getIntKey;
+  ops.coutItem=coutInt;
+
+  proc->ft=CA_create(OPEN_MAX, ops);
+  if(proc->ft==NULL)
+    return 1;
+  
+  stdin=newInt();
+  stdout=newInt();
+  stderr=newInt();
+
+  CA_add(proc->ft, stdin);
+  CA_add(proc->ft, stdout);
+  CA_add(proc->ft, stderr);
+
+  return 0;
+}
+
+/*
+ * Destroy file table of single process.
+ */
+static int proc_fileTable_destroy(struct proc *proc)
+{
+  return CA_destroy(proc->ft);
+}
 #endif
 
 /*
@@ -336,6 +377,9 @@ static int proc_create(const char *name, struct proc **retproc)
         }
       }
 
+      if(proc_fileTable_create(proc))
+        return 1;  
+
       proc->p_sem = sem_create(name, 0);
       if (proc->p_sem == NULL) {
         proc_table_remove(proc);
@@ -344,9 +388,6 @@ static int proc_create(const char *name, struct proc **retproc)
         kfree(proc);
         return ENOMEM;
       }
-#endif
-#if OPT_FILE
-      bzero(proc->fileTable,OPEN_MAX*sizeof(struct openfile *));
 #endif
 
       *retproc = proc;
@@ -378,6 +419,7 @@ void proc_destroy(struct proc *proc)
 
 #if OPT_SHELL
       sem_destroy(proc->p_sem);
+      proc_fileTable_destroy(proc);
       proc_table_remove(proc);
       proc_children_destroy(proc);
 #endif
@@ -442,7 +484,6 @@ void proc_destroy(struct proc *proc)
       kfree(proc->p_name);
       kfree(proc);
 }
-
 /*
  * Create the process structure for the kernel.
  */
@@ -698,18 +739,62 @@ void proc_signal(struct proc *proc) {
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest)
 {
       int fd;
+      fcb file;
 
-      KASSERT(psrc != NULL);
-      KASSERT(pdest != NULL);
+      pdest->ft=CA_duplicate(psrc->ft);
+      for (fd=0; fd<CA_size(psrc->ft); fd++) {
+        file=sys_fileTable_get(proc_fileTable_get(psrc, fd));
 
-      for (fd=0; fd<OPEN_MAX; fd++) {
-        struct openfile *of = psrc->fileTable[fd];
-
-        pdest->fileTable[fd] = of;
-        if (of != NULL) {
+        if (file != NULL) {
           /* incr reference count */
-          openfileIncrRefCount(of);
+          openfileIncrRefCount(file);
+          fd--;
         }
       }
+}
+
+/* Adding on file table file descriptor of system file table */
+int proc_fileTable_add(struct proc *proc, int indTable)
+{
+  int result;
+
+  spinlock_acquire(&(proc->p_lock));
+  result=CA_add(proc->ft, copyInt(&indTable));
+  spinlock_release(&(proc->p_lock));
+  return result;
+}
+
+/* Remove on file table file descriptor of system file table*/
+int proc_fileTable_remove(struct proc *proc, int fd)
+{
+  int result;
+
+  spinlock_acquire(&(proc->p_lock));
+  result=CA_remove_byIndex(proc->ft, fd);
+  spinlock_release(&(proc->p_lock));
+
+  return result;
+}
+
+int proc_fileTable_get(struct proc *proc, int fd)
+{
+  int *getResult;
+  if(proc==NULL || fd<0)
+    return -1;
+
+  getResult=CA_get_byIndex(proc->ft, fd);
+
+  return getResult==NULL? -1: *getResult;
+}
+
+int proc_fileTable_set(struct proc *proc, int fd, int indTable)
+{
+  int result;
+
+  spinlock_acquire(&(proc->p_lock));
+  result=CA_set(proc->ft, copyInt(&indTable), fd);
+  spinlock_release(&(proc->p_lock));
+
+  return result;
 }
 #endif

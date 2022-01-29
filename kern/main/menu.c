@@ -613,6 +613,7 @@ static const char *testmenu[] = {
 	"[fs6] FS create stress              ",
 #if OPT_SHELL
 	"[lt] List test                      ",
+	"[cat] Circular array test           ",
 #endif
 	NULL
 };
@@ -747,6 +748,8 @@ static struct {
 #if OPT_SHELL
 	/* list tests */
 	{ "lt",		listtest },
+	/* circular array tests */
+	{ "cat",	carraytest },
 #endif
 
 	{ NULL, NULL }
