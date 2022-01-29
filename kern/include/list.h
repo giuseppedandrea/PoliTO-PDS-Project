@@ -17,9 +17,9 @@ bool    list_isEmpty(list l);
 /* return the current number of nodes in the list */
 size_t  list_size(list l);
 /* insert a node in head */
-bool    list_insertHead(list l, void *data);
+int     list_insertHead(list l, void *data);
 /* insert a node in tail */
-bool    list_insertTail(list l, void *data);
+int     list_insertTail(list l, void *data);
 /* search a node by its key and, if found, return the associated data */
 void   *list_searchByKey(list l, const void *key, size_t key_offset, size_t key_size);
 /* delete a node in head and return the associated data */

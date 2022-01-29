@@ -75,10 +75,11 @@ off_t sys_lseek(int fd, off_t offset, int whence, int *errp);
 int sys_chdir(const char *pathname, int *errp);
 int sys___getcwd(char *ptr, size_t bufflen, int *errp);
 int sys_dup2(int oldfd, int newfd, int *errp);
-void sys__exit(int status);
-int sys_waitpid(pid_t pid, userptr_t statusp, int options);
+void sys__exit(int exitcode);
+pid_t sys_waitpid(pid_t pid, userptr_t statusp, int options, int *errp);
 pid_t sys_getpid(void);
-int sys_fork(struct trapframe *ctf, pid_t *retval);
+pid_t sys_fork(struct trapframe *ctf, int *errp);
+int sys_execv(const char *progname, char **args, int *errp);
 #endif
 
 #endif /* _SYSCALL_H_ */

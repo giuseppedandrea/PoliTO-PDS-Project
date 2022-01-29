@@ -31,6 +31,7 @@
 #include <kern/errno.h>
 #include <kern/reboot.h>
 #include <kern/unistd.h>
+#include <kern/wait.h>
 #include <limits.h>
 #include <lib.h>
 #include <uio.h>
@@ -53,6 +54,33 @@
 #define _PATH_SHELL "/bin/sh"
 
 #define MAXMENUARGS  16
+
+#if OPT_SHELL
+/*
+ * printstatus
+ * print results from wait
+ */
+static
+void
+printstatus(int status)
+{
+	if (WIFEXITED(status)) {
+		kprintf("Exit %d\n",  WEXITSTATUS(status));
+	}
+	else if (WIFSIGNALED(status) && WCOREDUMP(status)) {
+		kprintf("Signal %d (core dumped)\n", WTERMSIG(status));
+	}
+	else if (WIFSIGNALED(status)) {
+		kprintf("Signal %d\n", WTERMSIG(status));
+	}
+	else if (WIFSTOPPED(status)) {
+		kprintf("Stopped on signal %d\n", WSTOPSIG(status));
+	}
+	else {
+		kprintf("Invalid status code %d", status);
+	}
+}
+#endif
 
 ////////////////////////////////////////////////////////////
 //
@@ -79,16 +107,22 @@ cmd_progthread(void *ptr, unsigned long nargs)
 
 	KASSERT(nargs >= 1);
 
+#if !OPT_SHELL
 	if (nargs > 2) {
 		kprintf("Warning: argument passing from menu not supported\n");
 	}
+#endif
 
 	/* Hope we fit. */
 	KASSERT(strlen(args[0]) < sizeof(progname));
 
 	strcpy(progname, args[0]);
 
+#if OPT_SHELL
+	result = runprogram(progname, nargs, args);
+#else
 	result = runprogram(progname);
+#endif
 	if (result) {
 		kprintf("Running program %s failed: %s\n", args[0],
 			strerror(result));
@@ -115,12 +149,12 @@ int
 common_prog(int nargs, char **args)
 {
 	struct proc *proc;
-	int result, exit_code;
+	int result;
 
 	/* Create a process for the new program to run in. */
-	proc = proc_create_runprogram(args[0] /* name */);
+	result = proc_create_runprogram(args[0] /* name */, &proc);
 	if (proc == NULL) {
-		return ENOMEM;
+		return result;
 	}
 
 	result = thread_fork(args[0] /* thread name */,
@@ -134,10 +168,9 @@ common_prog(int nargs, char **args)
 	}
 
 #if OPT_SHELL
-	exit_code=proc_wait(proc);
-	return 0;
+	result = proc_wait(proc);
+	printstatus(result);
 #endif
-	(void) exit_code;
 
 	return 0;
 }

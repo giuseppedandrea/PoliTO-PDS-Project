@@ -38,6 +38,7 @@
 
 #include <spinlock.h>
 #include <limits.h>
+#include <list.h>
 #include "opt-shell.h"
 #include "circulararray.h"
 
@@ -63,35 +64,28 @@ struct vnode;
  * without sleeping.
  */
 
-typedef struct _children *children;
-
 struct proc {
-	char *p_name;			/* Name of this process */
-	struct spinlock p_lock;		/* Lock for this structure */
-	unsigned p_numthreads;		/* Number of threads in this process */
+  char *p_name;                   /* name of this process */
+  struct spinlock p_lock;         /* lock for this structure */
+  unsigned p_numthreads;          /* number of threads in this process */
 
-	/* VM */
-	struct addrspace *p_addrspace;	/* virtual address space */
+  /* VM */
+  struct addrspace *p_addrspace;  /* virtual address space */
 
-	/* VFS */
-	struct vnode *p_cwd;		/* current working directory */
+  /* VFS */
+  struct vnode *p_cwd;            /* current working directory */
 
-	/* add more material here as needed */
 #if OPT_SHELL
-  int p_status;                   /* status as obtained by exit() */
-  pid_t p_pid;                    /* process pid */
-  struct semaphore *p_sem;
+  int p_exit_status;              /* status as obtained by exit() */
+  bool p_exited;                  /* indicate if the process has exited */
+  bool p_orphan;                  /* indicate if the parent has exited but the process is still running */
+  pid_t p_parent_pid;             /* parent process ID (pid) */
+  pid_t p_pid;                    /* process ID (pid) */
+  list p_children;                /* list of child processes */
   cirarray ft;
-
-  // father pid
-  pid_t fath_pid;
-  // childern process, managed as a vector of pid
-  children ch_pid;
-  
-  
+  struct semaphore *p_sem;        /* semaphore used for waitpid */
 #endif
 };
-
 
 
 /* This is the process structure for the kernel and for kernel-only threads. */
@@ -101,7 +95,7 @@ extern struct proc *kproc;
 void proc_bootstrap(void);
 
 /* Create a fresh process for use by runprogram(). */
-struct proc *proc_create_runprogram(const char *name);
+int proc_create_runprogram(const char *name, struct proc **retproc);
 
 /* Destroy a process. */
 void proc_destroy(struct proc *proc);
@@ -120,21 +114,19 @@ struct addrspace *proc_setas(struct addrspace *);
 
 
 #if OPT_SHELL
-/* wait for process termination, and return exit status */
+/* Wait for process termination, destroy the process, and return exit status */
 int proc_wait(struct proc *proc);
-/* get proc from pid */
-struct proc *proc_search_pid(pid_t pid);
-/* signal end/exit of process */
-void proc_signal_end(struct proc *proc);
-void proc_signal_wait(struct proc *proc);
+/* Signal end/exit of process */
+void proc_signal(struct proc *proc);
+/* Get proc from pid */
+int proc_table_search(pid_t pid, struct proc **retproc);
+/* Copy file table from a process to another process */
 void proc_file_table_copy(struct proc *psrc, struct proc *pdest);
-int procChild_add(struct proc *fath, struct proc *ch);
-int procChild_remove(struct proc *proc);
 int proc_fileTable_add(struct proc *proc, int indTable);
 int proc_fileTable_remove(struct proc *proc, int fd);
 int proc_fileTable_get(struct proc *proc, int fd);
 int proc_fileTable_set(struct proc *proc, int fd, int indTable);
-
 #endif
+
 
 #endif /* _PROC_H_ */
