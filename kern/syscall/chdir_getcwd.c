@@ -15,22 +15,34 @@
 
 int sys_chdir(const char *pathname, int *errp)
 {
-    int result;
-    char *path;
+    int len, result;
+    char *kpath;
 
     if(pathname==NULL || !as_check_addr(curproc->p_addrspace, (vaddr_t)pathname)) {
         *errp=EFAULT;
         return -1;
     }
 
-    path=kmalloc((strlen(pathname)*sizeof(char)));
-    strcpy(path, pathname);
+    len = strlen(pathname)+1;
 
-    result=vfs_chdir(path);
+    kpath=kmalloc(len*sizeof(char));
+    if(kpath == NULL) {
+        *errp=ENOMEM;
+        return -1;
+    }
+    result = copyin((const_userptr_t)pathname, kpath, len);
     if(result) {
         *errp=result;
         return -1;
     }
+
+    result=vfs_chdir(kpath);
+    if(result) {
+        *errp=result;
+        return -1;
+    }
+
+    kfree(kpath);
 
     return 0;
 }

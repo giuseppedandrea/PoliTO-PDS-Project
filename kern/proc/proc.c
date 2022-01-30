@@ -761,7 +761,6 @@ void proc_fileTable_copy(struct proc *psrc, struct proc *pdest)
         if (file != NULL) {
           /* incr reference count */
           openfileIncrRefCount(file);
-          fd--;
         }
       }
 }

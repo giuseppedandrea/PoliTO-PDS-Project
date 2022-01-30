@@ -22,9 +22,10 @@ int sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
 {
   int fd, indTable;
   struct vnode *v;
-  int result;
+  int len, result;
   fcb newFile;
   struct proc *p;
+  char *kpath;
 
   p=curproc;
 
@@ -34,7 +35,21 @@ int sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
     return -1;
   }
 
-  result = vfs_open((char *)path, openflags, mode, &v);
+  len = strlen((char *)path)+1;
+
+  kpath=kmalloc(len*sizeof(char));
+  if(kpath == NULL) {
+      *errp=ENOMEM;
+      return -1;
+  }
+  result = copyin((const_userptr_t)path, kpath, len);
+  if(result) {
+      *errp=result;
+      return -1;
+  }
+
+
+  result = vfs_open((char *)kpath, openflags, mode, &v);
   if (result) {
     *errp = result;
     return -1;
@@ -56,6 +71,7 @@ int sys_open(userptr_t path, int openflags, mode_t mode, int *errp)
   }
        
   vfs_close(v);
+  kfree(kpath);
   return -1;
 }
 
