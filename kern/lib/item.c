@@ -73,7 +73,7 @@ void
 coutFCB(CAitem source)
 {
     fcb src=(fcb) source;
-    kprintf("vn=%p size=%llx offset=%llx countRef=%d lock=%p \n", src->vn, src->size, src->offset, src->countRef, src->vn_lk);
+    kprintf("vn=%p size=%llx offset=%llx countRef=%d flag=%d lock=%p \n PID=%d", src->vn, src->size, src->offset, src->countRef, src->flag, src->vn_lk, curproc->p_pid);
 }
 
 

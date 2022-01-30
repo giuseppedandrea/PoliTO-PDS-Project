@@ -94,8 +94,10 @@ int sys_close(int fd, int *errp)
     *errp=EBADF; 
     return -1;
   }
-  if(--file->countRef > 0) 
-    return 0; // just decrement ref cnt
+
+  if(openfileDecrRefCount(file)>0) {
+    return 0;
+  }
   
   sys_fileTable_remove(proc_fileTable_get(proc, fd));
   proc_fileTable_remove(curproc, fd);

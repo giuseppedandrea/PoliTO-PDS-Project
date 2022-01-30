@@ -152,6 +152,7 @@ int CA_remove_byIndex(cirarray ca, int pos)
 
     ca->ops.freeItem(ca->item[pos]);
     ca->item[pos]=NULL;
+    ca->lastpos=pos-1;
     ca->nelements--;
     return 0;
 }
@@ -254,13 +255,14 @@ int CA_stamp(cirarray ca)
             {
                 kprintf("POS[%d]= ", i);    
                 ca->ops.coutItem(ca->item[i]);
+                kprintf("\n");
             }
     return 0;
 }
 
 int CA_size(cirarray ca)
 {
-    return ca->nelements;
+    return ca->curdim;
 }
 
 

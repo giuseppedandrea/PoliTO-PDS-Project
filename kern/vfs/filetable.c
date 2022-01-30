@@ -19,21 +19,33 @@
 #include "autoconf.h"  // for pseudoconfig
 #include "filetable.h"
 #include "opt-shell.h"
-#include "circulararray.h"
 #include "item.h"
 #include <spinlock.h>
 // OPEN_MAX come limite massimo di file aperti per processo. Sono 128
 
 
-
 static cirarray system_openTable; 
 static struct lock *sys_openTable_lk;
 
-
-
 void openfileIncrRefCount(fcb file) {
   if (file != NULL)
+  {
+    lock_acquire(file->vn_lk);
     file->countRef++;
+    lock_release(file->vn_lk);
+  }
+}
+
+int openfileDecrRefCount(fcb file) {
+  if (file != NULL)
+  {
+    lock_acquire(file->vn_lk);
+    file->countRef--;
+    lock_release(file->vn_lk);
+
+    return file->countRef;
+  }
+  return -1;
 }   
 
 
@@ -62,6 +74,7 @@ int sys_fileTable_add(fcb file)
     result=CA_add(system_openTable, file);
     lock_release(sys_openTable_lk);    
 
+
     return result;
 }
 
@@ -78,7 +91,9 @@ int sys_fileTable_remove(int ind)
 
 fcb sys_fileTable_get(int ind)
 {
+    
     fcb file=CA_get_byIndex(system_openTable, ind);
+    
     return file;
 }
 

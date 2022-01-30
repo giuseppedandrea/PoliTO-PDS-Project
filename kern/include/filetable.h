@@ -4,8 +4,12 @@
 
 #include "opt-shell.h"
 #include <vnode.h>
+#include "circulararray.h"
+
 
 #if OPT_SHELL
+
+
 
 typedef struct _file* fcb;
 
@@ -20,8 +24,8 @@ struct _file
     
 };  
 
-
 void openfileIncrRefCount(fcb file);
+int openfileDecrRefCount(fcb file);
 
 // qui aggiungere funzioni che agiscono sulla struct definita dentro filetable.c
 void sys_fileTable_bootstrap(void);

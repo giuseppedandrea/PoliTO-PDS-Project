@@ -755,6 +755,7 @@ void proc_fileTable_copy(struct proc *psrc, struct proc *pdest)
       fcb file;
 
       pdest->ft=CA_duplicate(psrc->ft);
+
       for (fd=0; fd<CA_size(psrc->ft); fd++) {
         file=sys_fileTable_get(proc_fileTable_get(psrc, fd));
 
