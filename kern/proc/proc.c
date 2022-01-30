@@ -53,6 +53,7 @@
 #include "item.h"
 #include <synch.h>
 #include <limits.h>
+#include <kern/unistd.h>
 
 /* Max number of active processes on the system */
 #define MAX_SYSTEM_PROCS 1024
@@ -802,6 +803,9 @@ int proc_fileTable_get(struct proc *proc, int fd)
   if(proc==NULL || fd<0)
     return -1;
 
+  if(fd==STDIN_FILENO || fd==STDOUT_FILENO || fd==STDERR_FILENO)
+    fd++;
+
   getResult=CA_get_byIndex(proc->ft, fd);
 
   return getResult==NULL? -1: *getResult;
@@ -810,9 +814,12 @@ int proc_fileTable_get(struct proc *proc, int fd)
 /*
  * Set on file table file descriptor of system file table.
  */
-int proc_fileTable_set(struct proc *proc, int fd, int indTable)
+int proc_fileTable_set(struct proc *proc, int indTable, int fd)
 {
   int result;
+
+  if(fd==STDIN_FILENO || fd==STDOUT_FILENO || fd==STDERR_FILENO)
+    fd++;
 
   spinlock_acquire(&(proc->p_lock));
   result=CA_set(proc->ft, copyInt(&indTable), fd);

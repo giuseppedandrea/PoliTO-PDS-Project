@@ -129,7 +129,7 @@ int proc_fileTable_remove(struct proc *proc, int fd);
 /* Get on file table file descriptor of system file table*/
 int proc_fileTable_get(struct proc *proc, int fd);
 /* Set on file table file descriptor of system file table*/
-int proc_fileTable_set(struct proc *proc, int fd, int indTable);
+int proc_fileTable_set(struct proc *proc, int indTable, int fd);
 #endif
 
 

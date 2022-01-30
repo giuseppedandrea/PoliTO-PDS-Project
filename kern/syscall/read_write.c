@@ -36,6 +36,9 @@ static int file_write(int fd, userptr_t buf_ptr, size_t size, int* errp) {
 
   p=curproc;
 
+  //kprintf("Tabella processi: \n");
+  //CA_stamp(p->ft);
+
   file=sys_fileTable_get(proc_fileTable_get(p, fd));
   if(file==NULL || file->flag == O_RDONLY) 
   {
@@ -128,9 +131,6 @@ static int file_read(int fd, userptr_t buf_ptr, size_t size, int *errp) {
   vn=file->vn;
   VOP_STAT(vn, &st);
 
-
-
-  
   iov.iov_ubase=buf_ptr;
   iov.iov_len=size;
 

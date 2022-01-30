@@ -25,11 +25,6 @@ off_t sys_lseek(int fd, off_t offset, int whence, int *errp)
         return -1;
     }
 
-    if(fd==STDERR_FILENO || fd==STDIN_FILENO || fd==STDOUT_FILENO) {
-        *errp=ESPIPE;
-        return -1;
-    }
-
     file=sys_fileTable_get(proc_fileTable_get(curproc, fd));
     if(file==NULL) {
         *errp=EBADF;

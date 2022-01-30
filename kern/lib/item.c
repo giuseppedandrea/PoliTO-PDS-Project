@@ -4,6 +4,7 @@ CAitem newFCB(void)
 {
     fcb new=kmalloc(sizeof(*new));
     bzero(new, sizeof(*new));
+    new->vn=kmalloc(sizeof(*new->vn));
 
     return new==NULL? NULL:new;
 }
@@ -53,11 +54,14 @@ CAitem copyFCB(CAitem source)
     fcb a=(fcb) source;
     fcb b=newFCB();
 
+    //memcpy(b->vn, a->vn, sizeof(*(a->vn)));
     b->vn=a->vn;
-    b->vn_lk=a->vn_lk;
+    vnode_incref(a->vn);
+    b->vn_lk=lock_create("lock_file");
     b->offset=a->offset;
     b->countRef=a->countRef;
     b->size=a->size;
+    b->flag=a->flag;
 
     return b;
 }
