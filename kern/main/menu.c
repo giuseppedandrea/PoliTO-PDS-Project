@@ -40,6 +40,7 @@
 #include <synch.h>
 #include <thread.h>
 #include <proc.h>
+#include <current.h>
 #include <vfs.h>
 #include <sfs.h>
 #include <syscall.h>
@@ -126,6 +127,15 @@ cmd_progthread(void *ptr, unsigned long nargs)
 	if (result) {
 		kprintf("Running program %s failed: %s\n", args[0],
 			strerror(result));
+#if OPT_SHELL
+		/* Set encoded exit status */
+		curproc->p_exit_status = _MKWAIT_EXIT(result);
+		/* Set process has exited */
+		curproc->p_exited = true;
+		/* Signal for process termination */
+		proc_signal(curproc);
+		  /* Set encoded exit status */
+#endif
 		return;
 	}
 
