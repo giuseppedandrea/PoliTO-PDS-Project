@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2000, 2001, 2002, 2003, 2004, 2005, 2008, 2009
- *	The President and Fellows of Harvard College.
+ *  The President and Fellows of Harvard College.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,21 +38,21 @@
 int
 sys___time(userptr_t user_seconds_ptr, userptr_t user_nanoseconds_ptr)
 {
-	struct timespec ts;
-	int result;
+  struct timespec ts;
+  int result;
 
-	gettime(&ts);
+  gettime(&ts);
 
-	result = copyout(&ts.tv_sec, user_seconds_ptr, sizeof(ts.tv_sec));
-	if (result) {
-		return result;
-	}
+  result = copyout(&ts.tv_sec, user_seconds_ptr, sizeof(ts.tv_sec));
+  if (result) {
+    return result;
+  }
 
-	result = copyout(&ts.tv_nsec, user_nanoseconds_ptr,
-			 sizeof(ts.tv_nsec));
-	if (result) {
-		return result;
-	}
+  result = copyout(&ts.tv_nsec, user_nanoseconds_ptr,
+    sizeof(ts.tv_nsec));
+  if (result) {
+    return result;
+  }
 
-	return 0;
+  return 0;
 }

@@ -23,7 +23,7 @@ pid_t sys_waitpid(pid_t pid, userptr_t statusp, int options, int *errp)
     return -1;
   }
 
-  /* 
+  /*
    * The only process that is expected to collect another process's exit status is its parent.
    * Check if the pid argument named a process that was not a child of the current process.
    */
@@ -75,7 +75,7 @@ pid_t sys_waitpid(pid_t pid, userptr_t statusp, int options, int *errp)
    * Otherwise, waitpid operates normally but the status value is not produced.
    */
   if (statusp != NULL) {
-    *(int*)statusp = result;
+    *(int *)statusp = result;
   }
 
   return pid;

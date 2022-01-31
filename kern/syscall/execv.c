@@ -11,11 +11,13 @@
 #include <addrspace.h>
 #include <current.h>
 
-static void free_kprogname(char *kprogname) {
+static void free_kprogname(char *kprogname)
+{
   kfree(kprogname);
 }
 
-static int alloc_kprogname(const char *progname, char **kprogname) {
+static int alloc_kprogname(const char *progname, char **kprogname)
+{
   size_t len;
   char *_kprogname;
   int result;
@@ -41,7 +43,8 @@ static int alloc_kprogname(const char *progname, char **kprogname) {
   return 0;
 }
 
-static void free_kargs(int kargc, char **kargs) {
+static void free_kargs(int kargc, char **kargs)
+{
   int i;
 
   for (i = 0; i < kargc; i++) {
@@ -50,7 +53,8 @@ static void free_kargs(int kargc, char **kargs) {
   kfree(kargs);
 }
 
-static int alloc_kargs(char **args, int *kargc, char ***kargs) {
+static int alloc_kargs(char **args, int *kargc, char ***kargs)
+{
   char **tmp, **_kargs;
   size_t total_size, len;
   int _kargc, n, result;
@@ -60,7 +64,7 @@ static int alloc_kargs(char **args, int *kargc, char ***kargs) {
   /* Get argc */
   tmp = args;
   _kargc = 0;
-  while(*tmp != NULL) {
+  while (*tmp != NULL) {
     _kargc++;
     tmp++;
   }
@@ -117,7 +121,8 @@ static int alloc_kargs(char **args, int *kargc, char ***kargs) {
   return 0;
 }
 
-static int copy_kargs(int kargc, char **kargs, vaddr_t *stackptr) {
+static int copy_kargs(int kargc, char **kargs, vaddr_t *stackptr)
+{
   int i, result;
   vaddr_t *kargs_ptrs;
   size_t len, kargs_ptrs_size;
@@ -217,7 +222,8 @@ static int copy_kargs(int kargc, char **kargs, vaddr_t *stackptr) {
 /*
  * execv syscall - execute a program
  */
-int sys_execv(const char *progname, char **args, int *errp) {
+int sys_execv(const char *progname, char **args, int *errp)
+{
   char *kprogname;
   char **kargs;
   struct vnode *v;
@@ -355,8 +361,8 @@ int sys_execv(const char *progname, char **args, int *errp) {
 
   /* Warp to user mode. */
   enter_new_process(kargc /*argc*/, (userptr_t)stackptr /*userspace addr of argv*/,
-        NULL /*userspace addr of environment*/,
-        stackptr, entrypoint);
+    NULL /*userspace addr of environment*/,
+    stackptr, entrypoint);
 
   /* enter_new_process does not return. */
   panic("enter_new_process returned\n");

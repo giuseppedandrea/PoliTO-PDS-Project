@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2000, 2001, 2002, 2003, 2004, 2005, 2008, 2009
- *	The President and Fellows of Harvard College.
+ *  The President and Fellows of Harvard College.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -78,155 +78,141 @@
 void
 syscall(struct trapframe *tf)
 {
-	int callno;
-	int32_t retval;
+  int callno;
+  int32_t retval;
 #if OPT_SHELL
-	int32_t retval2, val3;
-	uint32_t val1, val2;
-	off_t val_64, retval_64;
+  int32_t retval2, val3;
+  uint32_t val1, val2;
+  off_t val_64, retval_64;
 #endif
-	int err=0;
+  int err = 0;
 
-	KASSERT(curthread != NULL);
-	KASSERT(curthread->t_curspl == 0);
-	KASSERT(curthread->t_iplhigh_count == 0);
+  KASSERT(curthread != NULL);
+  KASSERT(curthread->t_curspl == 0);
+  KASSERT(curthread->t_iplhigh_count == 0);
 
-	callno = tf->tf_v0;
+  callno = tf->tf_v0;
 
-	/*
-	 * Initialize retval to 0. Many of the system calls don't
-	 * really return a value, just 0 for success and -1 on
-	 * error. Since retval is the value returned on success,
-	 * initialize it to 0 by default; thus it's not necessary to
-	 * deal with it except for calls that return other values,
-	 * like write.
-	 */
-
-	retval = 0;
+  /*
+   * Initialize retval to 0. Many of the system calls don't
+   * really return a value, just 0 for success and -1 on
+   * error. Since retval is the value returned on success,
+   * initialize it to 0 by default; thus it's not necessary to
+   * deal with it except for calls that return other values,
+   * like write.
+   */
+  retval = 0;
 #if OPT_SHELL
-	retval2 = 0;
-#endif
-
-	switch (callno) {
-	    case SYS_reboot:
-		err = sys_reboot(tf->tf_a0);
-		break;
-
-	    case SYS___time:
-		err = sys___time((userptr_t)tf->tf_a0,
-				 (userptr_t)tf->tf_a1);
-		break;
-
-	    /* Add stuff here */
-#if OPT_SHELL
-	    case SYS_open:
-	        retval = sys_open((userptr_t)tf->tf_a0,
-				  (int)tf->tf_a1,
-				  (mode_t)tf->tf_a2, &err);
-                break;
-	    case SYS_close:
-	        retval = sys_close((int)tf->tf_a0, &err);
-                break;
-            case SYS_remove:
-	      /* just ignore: do nothing */
-	        retval = 0;
-                break;
-	    case SYS_write:
-	        retval = sys_write((int)tf->tf_a0,
-				(userptr_t)tf->tf_a1,
-				(size_t)tf->tf_a2, &err);
-
-                break;
-	    case SYS_read:
-	        retval = sys_read((int)tf->tf_a0,
-				(userptr_t)tf->tf_a1,
-				(size_t)tf->tf_a2, &err);
-
-                break;
-		case SYS_lseek:
-	        {
-
-	    		/* 64-bit arguments are passed in *aligned* pairs of registers, that is, either a0/a1 or a2/a3. This means that
-				* if the first argument is 32-bit and the second is 64-bit, a1 is unused.*/
-				val1=tf->tf_a2;
-				val2=tf->tf_a3;
-				val_64=val1;
-				val_64=val_64 << 32;
-				val_64=val_64 | val2;
-				/* If you run out of registers (which happens quickly with 64-bit values) further arguments must be fetched from the user-level
-				* stack, starting at sp+16 to skip over the slots for the registerized values, with copyin() .*/
-				val3=*(int32_t *) (tf->tf_sp+16);
-
-				retval_64 = sys_lseek((int)tf->tf_a0, val_64, (int)val3, &err);
-				retval=(retval_64  & 0xffffffff00000000) >> 32;
-				retval2=retval_64 & 0x00000000ffffffff;
-			}
-                break;
-		case SYS_dup2:
-	        retval = sys_dup2((int)tf->tf_a0,
-				(int)tf->tf_a1, &err);
-                break;
-		case SYS_chdir:
-	        retval = sys_chdir((const char *)tf->tf_a0,
-				&err);
-                break;
-		case SYS___getcwd:
-	        retval = sys___getcwd((char *)tf->tf_a0, (size_t) tf->tf_a1,
-				&err);
-                break;		
-	    case SYS__exit:
-            sys__exit((int)tf->tf_a0);
-            break;
-	    case SYS_waitpid:
-            retval = sys_waitpid((pid_t)tf->tf_a0, (userptr_t)tf->tf_a1, (int)tf->tf_a2, &err);
-            break;
-	    case SYS_getpid:
-            retval = sys_getpid();
-            break;
-	    case SYS_fork:
-            retval = sys_fork(tf, &err);
-            break;
-	    case SYS_execv:
-            retval = sys_execv((const char *)tf->tf_a0, (char **)tf->tf_a1, &err);
-            break;
+  retval2 = 0;
 #endif
 
-	    default:
-		kprintf("Unknown syscall %d\n", callno);
-		err = ENOSYS;
-		break;
-	}
-
-
-	if (err) {
-		/*
-		 * Return the error code. This gets converted at
-		 * userlevel to a return value of -1 and the error
-		 * code in errno.
-		 */
-		tf->tf_v0 = err;
-		tf->tf_a3 = 1;      /* signal an error */
-	}
-	else {
-		/* Success. */
-		tf->tf_v0 = retval;
+  switch (callno) {
+    case SYS_reboot:
+      err = sys_reboot(tf->tf_a0);
+      break;
+    case SYS___time:
+      err = sys___time((userptr_t)tf->tf_a0,
+        (userptr_t)tf->tf_a1);
+      break;
 #if OPT_SHELL
-		tf->tf_v1 = retval2;
+    case SYS_open:
+      retval = sys_open((userptr_t)tf->tf_a0,
+        (int)tf->tf_a1,
+        (mode_t)tf->tf_a2, &err);
+      break;
+    case SYS_close:
+      retval = sys_close((int)tf->tf_a0, &err);
+      break;
+    case SYS_remove:
+      /* just ignore: do nothing */
+      retval = 0;
+      break;
+    case SYS_write:
+      retval = sys_write((int)tf->tf_a0,
+        (userptr_t)tf->tf_a1,
+        (size_t)tf->tf_a2, &err);
+      break;
+    case SYS_read:
+      retval = sys_read((int)tf->tf_a0,
+        (userptr_t)tf->tf_a1,
+        (size_t)tf->tf_a2, &err);
+      break;
+    case SYS_lseek:
+      /* 64-bit arguments are passed in *aligned* pairs of registers, that is, either a0/a1 or a2/a3. This means that
+         if the first argument is 32-bit and the second is 64-bit, a1 is unused. */
+      val1 = tf->tf_a2;
+      val2 = tf->tf_a3;
+      val_64 = val1;
+      val_64 = val_64 << 32;
+      val_64 = val_64 | val2;
+      /* If you run out of registers (which happens quickly with 64-bit values) further arguments must be fetched from the user-level
+         stack, starting at sp+16 to skip over the slots for the registerized values, with copyin(). */
+      val3 = *(int32_t *)(tf->tf_sp + 16);
+
+      retval_64 = sys_lseek((int)tf->tf_a0, val_64, (int)val3, &err);
+      retval = (retval_64 & 0xffffffff00000000) >> 32;
+      retval2 = retval_64 & 0x00000000ffffffff;
+      break;
+    case SYS_dup2:
+      retval = sys_dup2((int)tf->tf_a0,
+        (int)tf->tf_a1, &err);
+      break;
+    case SYS_chdir:
+      retval = sys_chdir((const char *)tf->tf_a0, &err);
+      break;
+    case SYS___getcwd:
+      retval = sys___getcwd((char *)tf->tf_a0, (size_t)tf->tf_a1, &err);
+      break;
+    case SYS__exit:
+      sys__exit((int)tf->tf_a0);
+      break;
+    case SYS_waitpid:
+      retval = sys_waitpid((pid_t)tf->tf_a0, (userptr_t)tf->tf_a1, (int)tf->tf_a2, &err);
+      break;
+    case SYS_getpid:
+      retval = sys_getpid();
+      break;
+    case SYS_fork:
+      retval = sys_fork(tf, &err);
+      break;
+    case SYS_execv:
+      retval = sys_execv((const char *)tf->tf_a0, (char **)tf->tf_a1, &err);
+      break;
 #endif
-		tf->tf_a3 = 0;      /* signal no error */
-	}
+    default:
+      kprintf("Unknown syscall %d\n", callno);
+      err = ENOSYS;
+      break;
+  }
 
-	/*
-	 * Now, advance the program counter, to avoid restarting
-	 * the syscall over and over again.
-	 */
+  if (err) {
+    /*
+     * Return the error code. This gets converted at
+     * userlevel to a return value of -1 and the error
+     * code in errno.
+     */
+    tf->tf_v0 = err;
+    tf->tf_a3 = 1;      /* signal an error */
+  } else {
+    /* Success. */
+    tf->tf_v0 = retval;
+#if OPT_SHELL
+    tf->tf_v1 = retval2;
+#endif
+    tf->tf_a3 = 0;      /* signal no error */
+  }
 
-	tf->tf_epc += 4;
+  /*
+   * Now, advance the program counter, to avoid restarting
+   * the syscall over and over again.
+   */
 
-	/* Make sure the syscall code didn't forget to lower spl */
-	KASSERT(curthread->t_curspl == 0);
-	/* ...or leak any spinlocks */
-	KASSERT(curthread->t_iplhigh_count == 0);
+  tf->tf_epc += 4;
+
+  /* Make sure the syscall code didn't forget to lower spl */
+  KASSERT(curthread->t_curspl == 0);
+  /* ...or leak any spinlocks */
+  KASSERT(curthread->t_iplhigh_count == 0);
 }
 
 /*
@@ -241,21 +227,20 @@ void
 enter_forked_process(struct trapframe *tf)
 {
 #if OPT_SHELL
-	// Duplicate frame so it's on stack
-	struct trapframe forkedTf = *tf; // copy trap frame onto kernel stack
+  // Duplicate frame so it's on stack
+  struct trapframe forkedTf = *tf; // copy trap frame onto kernel stack
 
-	kfree(tf); /* work done. now can be freed */
+  kfree(tf); /* work done. now can be freed */
 
-	forkedTf.tf_v0 = 0; // return value is 0
-	forkedTf.tf_a3 = 0; // return with success
+  forkedTf.tf_v0 = 0; // return value is 0
+  forkedTf.tf_a3 = 0; // return with success
 
-	forkedTf.tf_epc += 4; // return to next instruction
-	
-	as_activate();
+  forkedTf.tf_epc += 4; // return to next instruction
 
+  as_activate();
 
-	mips_usermode(&forkedTf);
+  mips_usermode(&forkedTf);
 #else
-	(void)tf;
+  (void)tf;
 #endif
 }
